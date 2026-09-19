@@ -1,129 +1,255 @@
+"""
+inference.py — HarmonE managed inference loop.
+
+BUG-3 FIX (T1.2): model is now cached as (name, mtime, obj).
+  torch.load / pickle.load called once per model switch, not once per inference.
+  Invalidated when model.csv mtime or contents change.
+
+BUG-2 / T1.4: column renamed to energy_uj (one SCHEMA constant, shared).
+BUG-4 / T1.4: scaler loaded from artifacts/scaler.pkl (fit once on train data).
+
+New (T0.1): energy measured via EnergyMeter abstraction (estimator on Windows,
+  rapl on Linux/Intel). Backend written to every predictions.csv row.
+
+New (T2.6): serving.json read each loop — supports batch_size, seq_length,
+  sampling_rate set by AegisML actuators.
+
+station_id column: written from data if present, else "ST_00".
+"""
+from __future__ import annotations
+
 import os
+import pickle
 import time
-import pandas as pd
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
-import pickle
-import pyRAPL
-from sklearn.preprocessing import MinMaxScaler
 
-# Ensure directories exist
-os.makedirs("knowledge", exist_ok=True)
-os.makedirs("models", exist_ok=True)
+ROOT = Path(__file__).resolve().parent
 
-# Initialize PyRAPL
-pyRAPL.setup()
-energy_meter = pyRAPL.Measurement("inference")
+# ── schema constant (shared with mape/monitor.py, aegis/core/) ───────────────
+# Import lazily to avoid circular dependency at module level
+def _get_schema():
+    try:
+        from aegis.core.models import SCHEMA
+        return SCHEMA
+    except ImportError:
+        # Fallback before T1.4/T2.1 are wired in
+        return {
+            "true_value": "true_value",
+            "predicted_value": "predicted_value",
+            "model_used": "model_used",
+            "inference_time": "inference_time",
+            "energy_uj": "energy_uj",
+            "station_id": "station_id",
+            "energy_backend": "energy_backend",
+        }
 
-# ---------------- Load Dataset ----------------
-print("Loading synthetic data stream...")
+# ── energy meter ──────────────────────────────────────────────────────────────
+from aegis.energy import get_meter
+_meter = get_meter()
 
-df = pd.read_csv("data/pems/flow_data_test.csv")
-data = df["flow"].values
+# ── paths ─────────────────────────────────────────────────────────────────────
+DATA_DIR         = ROOT / "data" / "pems"
+PREDICTIONS_FILE = ROOT / "knowledge" / "predictions.csv"
+MODEL_CSV        = ROOT / "knowledge" / "model.csv"
+SERVING_JSON     = ROOT / "knowledge" / "serving.json"
+SCALER_PKL       = ROOT / "artifacts" / "scaler.pkl"
 
-# Normalize data
-scaler = MinMaxScaler()
-data_scaled = scaler.fit_transform(data.reshape(-1, 1)).flatten()
+os.makedirs(ROOT / "knowledge", exist_ok=True)
+os.makedirs(ROOT / "models", exist_ok=True)
 
-# Create rolling window sequences (assuming sequence length of 10)
-def create_sequences(data, seq_length=10):
-    X, y = [], []
-    for i in range(len(data) - seq_length):
-        X.append(data[i:i+seq_length])
-        y.append(data[i+seq_length])
-    return np.array(X), np.array(y)
-
-seq_length = 5
-X_stream, y_stream = create_sequences(data_scaled, seq_length)
-
-print("Data stream prepared. Streaming inference begins...")
-
-# ---------------- Define LSTM Model ----------------
+# ── LSTM definition (matches train_models.py) ─────────────────────────────────
 class LSTMModel(nn.Module):
     def __init__(self):
-        super(LSTMModel, self).__init__()
+        super().__init__()
         self.lstm = nn.LSTM(input_size=1, hidden_size=50, batch_first=True)
-        self.fc = nn.Linear(50, 1)
+        self.fc   = nn.Linear(50, 1)
 
     def forward(self, x):
         _, (h_n, _) = self.lstm(x)
         return self.fc(h_n[-1])
 
-# ---------------- Inference Loop ----------------
-# Create a CSV to store predictions
-predictions_file = "knowledge/predictions.csv"
-print("hi")
-if not os.path.exists(predictions_file):
-    pd.DataFrame(columns=["true_value", "predicted_value", "model_used", "inference_time", "energy_uJ"]).to_csv(predictions_file, index=False)
 
-for i in range(len(X_stream)):  
-    # ---------------- Check Active Model ----------------
-    try:
-        with open("knowledge/model.csv", "r") as f:
-            chosen_model = f.read().strip().lower()  # Read model name (lstm, linear, svm)
-    except FileNotFoundError:
-        print("Error: knowledge/model.csv not found. Defaulting to LSTM.")
-        chosen_model = "lstm"
+# ── model cache (BUG-3 fix) ───────────────────────────────────────────────────
+_model_cache: dict = {"name": None, "mtime": None, "obj": None}
 
-    print(f"Inference {i+1}/{len(X_stream)}: Using model → {chosen_model.upper()}")
-
-    # ---------------- Load and Use Model ----------------
-    X_input = X_stream[i].reshape(1, -1)  # Reshape input for non-LSTM models
-
-    # Start PyRAPL energy measurement
-    energy_meter.begin()
-
-    start_time = time.time()
-    
-    if chosen_model == "lstm":
-        lstm_model = LSTMModel()
-        lstm_model.load_state_dict(torch.load("models/lstm.pth", weights_only=False))
-        lstm_model.eval()
-
-        X_tensor = torch.tensor(X_input, dtype=torch.float32).unsqueeze(-1)
-        prediction = lstm_model(X_tensor).detach().numpy().flatten()[0]
-
-    elif chosen_model == "linear":
-        with open("models/linear.pkl", "rb") as f:
-            lr_model = pickle.load(f)
-        prediction = lr_model.predict(X_input)[0]
-
-    elif chosen_model == "svm":
-        with open("models/svm.pkl", "rb") as f:
-            svm_model = pickle.load(f)
-        prediction = svm_model.predict(X_input)[0]
-
-    else:
-        print(f"Unknown model '{chosen_model}'. Defaulting to LSTM.")
-        lstm_model = LSTMModel()
-        lstm_model.load_state_dict(torch.load("models/lstm.pth"))
-        lstm_model.eval()
-
-        X_tensor = torch.tensor(X_input, dtype=torch.float32).unsqueeze(-1)
-        prediction = lstm_model(X_tensor).detach().numpy().flatten()[0]
-
-    inference_time = time.time() - start_time
-
-    # Stop PyRAPL measurement and get energy usage
-    energy_meter.end()
-    energy_usage_uJ = energy_meter.result.pkg[0]  # Energy in microjoules (µJ)
-
-    # ---------------- Store Predictions ----------------
-    true_value = y_stream[i]
-    true_value_actual = scaler.inverse_transform([[true_value]])[0, 0]
-    predicted_value_actual = scaler.inverse_transform([[prediction]])[0, 0]
-
-    # Append results to predictions.csv
-    pd.DataFrame([[true_value_actual, predicted_value_actual, chosen_model, inference_time, energy_usage_uJ]], 
-                 columns=["true_value", "predicted_value", "model_used", "inference_time", "energy_uJ"]).to_csv(
-        predictions_file, mode="a", header=False, index=False
+def _load_model(name: str):
+    """Load model from disk; cache the object; invalidate on mtime change."""
+    model_path = ROOT / "models" / (
+        f"{name}.pth" if name == "lstm" else f"{name}.pkl"
     )
+    try:
+        mtime = model_path.stat().st_mtime
+    except FileNotFoundError:
+        return None
 
-    print(f"True: {true_value_actual:.2f}, Predicted: {predicted_value_actual:.2f}, Model: {chosen_model.upper()}, "
-          f"Inference Time: {inference_time:.6f} sec, Energy: {energy_usage_uJ} µJ")
+    cached = _model_cache
+    if cached["name"] == name and cached["mtime"] == mtime:
+        return cached["obj"]
 
-    # Simulate real-time streaming delay
-    time.sleep(0.15)
+    # Cache miss — load from disk
+    if name == "lstm":
+        m = LSTMModel()
+        m.load_state_dict(torch.load(str(model_path), weights_only=False))
+        m.eval()
+    else:
+        with open(model_path, "rb") as fh:
+            m = pickle.load(fh)
 
-print("\nStreaming inference completed. Predictions saved in knowledge/predictions.csv")
+    cached["name"]  = name
+    cached["mtime"] = mtime
+    cached["obj"]   = m
+    return m
+
+
+def _read_model_name() -> str:
+    """Read active model from knowledge/model.csv."""
+    try:
+        return MODEL_CSV.read_text().strip().lower()
+    except FileNotFoundError:
+        return "lstm"
+
+
+def _read_serving() -> dict:
+    """Read serving.json; return defaults if absent."""
+    defaults = {"batch_size": 1, "seq_length": 5, "sampling_rate": 1.0}
+    try:
+        import json
+        with open(SERVING_JSON) as fh:
+            cfg = json.load(fh)
+        defaults.update(cfg)
+    except (FileNotFoundError, Exception):
+        pass
+    return defaults
+
+
+def _load_scaler():
+    """Load shared scaler; fit a fresh one if not present (fallback only)."""
+    if SCALER_PKL.exists():
+        with open(SCALER_PKL, "rb") as fh:
+            return pickle.load(fh)
+    # Fallback: fit on train data (BUG-4 partial fix — full fix in T1.4)
+    from sklearn.preprocessing import MinMaxScaler
+    train_path = DATA_DIR / "flow_data_train.csv"
+    if train_path.exists():
+        data = pd.read_csv(train_path)["flow"].values
+        sc = MinMaxScaler()
+        sc.fit(data.reshape(-1, 1))
+        return sc
+    return None
+
+
+def _predict(model, name: str, x_input: np.ndarray) -> float:
+    if name == "lstm":
+        t = torch.tensor(x_input, dtype=torch.float32).unsqueeze(-1)
+        with torch.no_grad():
+            return float(model(t).numpy().flatten()[0])
+    return float(model.predict(x_input)[0])
+
+
+# ── main ──────────────────────────────────────────────────────────────────────
+def main():
+    SCHEMA = _get_schema()
+    scaler = _load_scaler()
+
+    print("Loading data stream…")
+    test_path = DATA_DIR / "flow_data_test.csv"
+    df_full   = pd.read_csv(test_path)
+    has_station = "station_id" in df_full.columns
+    data        = df_full["flow"].values
+    stations    = df_full["station_id"].values if has_station else ["ST_00"] * len(data)
+
+    if scaler is None:
+        from sklearn.preprocessing import MinMaxScaler
+        scaler = MinMaxScaler()
+        scaler.fit(data.reshape(-1, 1))
+
+    data_scaled = scaler.transform(data.reshape(-1, 1)).flatten()
+
+    serving    = _read_serving()
+    seq_length = int(serving.get("seq_length", 5))
+
+    def _make_sequences(d, sl):
+        X, y = [], []
+        for i in range(len(d) - sl):
+            X.append(d[i:i + sl])
+            y.append(d[i + sl])
+        return np.array(X), np.array(y)
+
+    X_stream, y_stream = _make_sequences(data_scaled, seq_length)
+    station_stream     = stations[seq_length:]
+
+    print(f"Stream ready: {len(X_stream):,} steps  seq_length={seq_length}  "
+          f"energy_backend={_meter.backend}")
+
+    # Initialise predictions CSV
+    cols = [SCHEMA["true_value"], SCHEMA["predicted_value"], SCHEMA["model_used"],
+            SCHEMA["inference_time"], SCHEMA["energy_uj"],
+            SCHEMA["station_id"], SCHEMA["energy_backend"]]
+    if not PREDICTIONS_FILE.exists():
+        pd.DataFrame(columns=cols).to_csv(PREDICTIONS_FILE, index=False)
+
+    sample_rate = float(serving.get("sampling_rate", 1.0))
+    _sample_counter = 0
+
+    for i in range(len(X_stream)):
+        # Reload serving config each iteration (actuators may update it)
+        if i % 50 == 0:
+            serving     = _read_serving()
+            seq_length_new = int(serving.get("seq_length", 5))
+            sample_rate = float(serving.get("sampling_rate", 1.0))
+            if seq_length_new != seq_length:
+                # seq_length changed — rebuild sequences
+                seq_length = seq_length_new
+                X_stream, y_stream = _make_sequences(data_scaled, seq_length)
+                station_stream     = stations[seq_length:]
+                if i >= len(X_stream):
+                    break
+
+        # Sampling rate — skip rows probabilistically
+        _sample_counter += sample_rate
+        if _sample_counter < 1.0:
+            continue
+        _sample_counter -= 1.0
+
+        chosen_model = _read_model_name()
+        model        = _load_model(chosen_model)
+        if model is None:
+            print(f"Model '{chosen_model}' not found, skipping.")
+            continue
+
+        x_input  = X_stream[i].reshape(1, -1)
+        station  = station_stream[i] if i < len(station_stream) else "ST_00"
+
+        with _meter.measure("inference") as reading:
+            t0         = time.perf_counter()
+            prediction = _predict(model, chosen_model, x_input)
+            inf_time   = time.perf_counter() - t0
+
+        true_val  = scaler.inverse_transform([[y_stream[i]]])[0, 0]
+        pred_val  = scaler.inverse_transform([[prediction]])[0, 0]
+
+        row = pd.DataFrame([[
+            true_val, pred_val, chosen_model,
+            inf_time, reading.micro_joules,
+            station, reading.backend,
+        ]], columns=cols)
+        row.to_csv(PREDICTIONS_FILE, mode="a", header=False, index=False)
+
+        print(f"[{i+1}/{len(X_stream)}] "
+              f"true={true_val:.1f}  pred={pred_val:.1f}  "
+              f"model={chosen_model}  "
+              f"energy={reading.micro_joules:.0f}µJ({reading.backend})  "
+              f"time={inf_time*1000:.2f}ms  station={station}")
+
+        time.sleep(0.15)
+
+    print("\nInference complete. Predictions saved to", PREDICTIONS_FILE)
+
+
+if __name__ == "__main__":
+    main()

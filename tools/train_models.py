@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import numpy as np
 import pandas as pd
@@ -6,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import pickle
+from pathlib import Path
 from tqdm import tqdm
 from sklearn.svm import SVR
 from sklearn.linear_model import Ridge
@@ -13,11 +15,17 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader, TensorDataset
 
+# T1.4: resolve paths from repo root, not CWD
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
 # Ensure base directories exist
-base_dir = "versionedMR"
+base_dir = str(ROOT / "versionedMR")
 os.makedirs(base_dir, exist_ok=True)
-original_model_dir = "models"
+original_model_dir = str(ROOT / "models")
 os.makedirs(original_model_dir, exist_ok=True)
+artifacts_dir = ROOT / "artifacts"
+artifacts_dir.mkdir(exist_ok=True)
 
 def get_next_version(model_name):
     """Finds the next version number for a given model."""
@@ -57,12 +65,18 @@ def save_model_and_data(model, model_name, train_data_scaled, scaler):
     print(f"{model_name} saved at {version_path} and {model_path}")
 
 # Load the dataset
-df = pd.read_csv("data/pems/flow_data_train.csv")
+df = pd.read_csv(str(ROOT / "data" / "pems" / "flow_data_train.csv"))
 data = df["flow"].values
 
 # Normalize data for LSTM
 scaler = MinMaxScaler()
 data_scaled = scaler.fit_transform(data.reshape(-1, 1)).flatten()
+
+# T1.4 BUG-4 fix: persist scaler so inference.py and retrain.py share it
+scaler_path = artifacts_dir / "scaler.pkl"
+with open(scaler_path, "wb") as fh:
+    pickle.dump(scaler, fh)
+print(f"Scaler saved to {scaler_path}")
 
 # Split into train/test (80% train, 20% test)
 split_idx = int(len(data) * 0.8)
