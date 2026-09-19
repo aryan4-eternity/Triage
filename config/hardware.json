@@ -1,0 +1,46 @@
+{
+  "_comment": "Hardware profile for energy estimation. Re-run tools/profile_models.py on your machine to update.",
+  "_provenance": "placeholder defaults — TODO(calibrate) replace with measured values from profile_models.py",
+  "_date": "2026-09-19",
+
+  "cpu_model": "unknown",
+  "os": "unknown",
+  "tdp_watts": 65.0,
+  "utilisation": 0.35,
+
+  "energy_backend": "estimator",
+
+  "model_profiles": {
+    "lstm": {
+      "uj_per_inference_batch1":  12000.0,
+      "ms_per_inference_batch1":  8.0,
+      "uj_per_inference_batch8":  9000.0,
+      "ms_per_inference_batch8":  6.0,
+      "_note": "TODO(calibrate) — placeholder; run tools/profile_models.py"
+    },
+    "svm": {
+      "uj_per_inference_batch1":  3500.0,
+      "ms_per_inference_batch1":  2.2,
+      "uj_per_inference_batch8":  2800.0,
+      "ms_per_inference_batch8":  1.8,
+      "_note": "TODO(calibrate) — placeholder"
+    },
+    "linear": {
+      "uj_per_inference_batch1":  800.0,
+      "ms_per_inference_batch1":  0.5,
+      "uj_per_inference_batch8":  600.0,
+      "ms_per_inference_batch8":  0.4,
+      "_note": "TODO(calibrate) — placeholder"
+    }
+  },
+
+  "retrain_cost_uj": {
+    "lstm":   4200000.0,
+    "svm":    850000.0,
+    "linear": 120000.0,
+    "_note": "TODO(calibrate) — placeholder; run tools/profile_models.py --retrain"
+  },
+
+  "idle_power_uw": 8500000.0,
+  "_idle_note": "TODO(calibrate) — measure 60s idle; used to compute net inference energy"
+}
