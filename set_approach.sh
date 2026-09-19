@@ -40,6 +40,9 @@ case $approach in
         echo "linear" > knowledge/model.csv
         echo "Approach set to '$approach'. Updated knowledge/model.csv to use 'linear'."
         ;;
+    aegis)
+        echo "Approach set to 'aegis'. AegisML multi-objective controller."
+        ;;
     *)
         echo "Unknown approach option: '$approach'"
         exit 1

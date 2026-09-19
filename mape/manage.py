@@ -1,112 +1,123 @@
-import threading
-import time
-import pyRAPL
+"""
+mape/manage.py — HarmonE MAPE-K manager.
+
+T0.1 change: pyRAPL replaced with EnergyMeter abstraction so the process
+  starts on any platform (Windows, macOS, AMD), not just Linux/Intel.
+T2.8 change: "aegis" approach launches aegis/manage.py instead.
+"""
 import csv
 import os
-import pandas as pd
-from execute import execute_mape, execute_drift
+import sys
+import threading
+import time
+from pathlib import Path
 
-pyRAPL.setup()
-log_file = "knowledge/mape_log.csv"
-predictions_file = "knowledge/predictions.csv"
-drift_file = "knowledge/drift.csv"
-config_file = "approach.conf"
+import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "mape"))
+
+from execute import execute_mape, execute_drift
+from aegis.energy import get_meter as _get_meter
+
+_meter = _get_meter()
+
+log_file         = str(ROOT / "knowledge" / "mape_log.csv")
+predictions_file = str(ROOT / "knowledge" / "predictions.csv")
+drift_file       = str(ROOT / "knowledge" / "drift.csv")
+config_file      = str(ROOT / "approach.conf")
 
 # Ensure log file exists with header
 if not os.path.exists(log_file):
     with open(log_file, mode="w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(["function", "energy_joules"])
+        csv.writer(file).writerow(["function", "energy_joules"])
 
-def log_energy(function_name, energy_joules):
+
+def log_energy(function_name: str, energy_uj: float) -> None:
     with open(log_file, mode="a", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow([function_name, energy_joules])
+        csv.writer(file).writerow([function_name, round(energy_uj / 1_000_000, 8)])
+
 
 def run_execute_mape():
     while True:
         time.sleep(40)
-        meter = pyRAPL.Measurement("execute_mape")
-        meter.begin()
-        start_time = time.perf_counter()
-        execute_mape()
-        end_time = time.perf_counter()
-        meter.end()
-        inference_time = end_time - start_time
-        print(f"Execution time (overhead) of execute_mape: {inference_time:.4f} seconds")
-        print(f"Energy consumption (pkg[0]): {meter.result.pkg[0]} uJ")
-        log_energy("execute_mape", meter.result.pkg[0]) 
+        with _meter.measure("execute_mape") as r:
+            t0 = time.perf_counter()
+            execute_mape()
+            elapsed = time.perf_counter() - t0
+        print(f"execute_mape: {elapsed:.4f}s  {r.micro_joules:.0f}µJ({r.backend})")
+        log_energy("execute_mape", r.micro_joules)
+
 
 def run_execute_drift():
     time.sleep(400)
     while True:
         time.sleep(3)
-        meter = pyRAPL.Measurement("execute_drift")
-        meter.begin()
-        execute_drift()
-        meter.end()
-        log_energy("execute_drift", meter.result.pkg[0])
+        with _meter.measure("execute_drift") as r:
+            execute_drift()
+        log_energy("execute_drift", r.micro_joules)
+
 
 def run_periodic_retrain():
     while True:
         time.sleep(500)
-        # Ensure `drift.csv` has data by storing the last 1500 rows from `predictions.csv`
         try:
             df = pd.read_csv(predictions_file)
             df.columns = df.columns.str.strip()
             if not df.empty:
                 df.tail(1500).to_csv(drift_file, index=False)
-                print("✔ Updated drift.csv with the last 1500 rows from predictions.csv")
+                print("✔ Updated drift.csv with last 1500 rows")
             else:
-                print("⚠️ Predictions file is empty. No data available for retraining.")
+                print("⚠️ predictions.csv is empty.")
         except FileNotFoundError:
-            print("❌ Error: predictions.csv not found. Cannot update drift.csv.")
+            print("❌ predictions.csv not found.")
 
-        # Run retraining
-        meter = pyRAPL.Measurement("periodic_retrain")
-        meter.begin()
-        os.system("python retrain.py")
-        meter.end()
-        log_energy("periodic_retrain", meter.result.pkg[0])
+        with _meter.measure("periodic_retrain") as r:
+            os.system(f"python \"{ROOT / 'retrain.py'}\"")
+        log_energy("periodic_retrain", r.micro_joules)
 
-def get_approach_config():
+
+def get_approach_config() -> str:
     if not os.path.exists(config_file):
-        print(f"Configuration file '{config_file}' not found. Defaulting to 'harmone'.")
         return "harmone"
-    with open(config_file, 'r') as f:
-        approach = f.read().strip().lower()
-    return approach
+    with open(config_file) as f:
+        return f.read().strip().lower()
+
 
 approach = get_approach_config()
-print(f"Running configuration: {approach}")
+print(f"Running configuration: {approach}  energy_backend={_meter.backend}")
 
+# ── aegis: hand off to the AegisML controller ─────────────────────────────
+if approach == "aegis":
+    import subprocess
+    print("Launching AegisML controller (aegis/manage.py)…")
+    subprocess.run([sys.executable, str(ROOT / "aegis" / "manage.py")])
+    sys.exit(0)
+
+# ── HarmonE approaches ─────────────────────────────────────────────────────
 threads = []
 
 if approach in ["harmone", "switch", "switch+retrain"]:
-    # Always run t1 for these approaches
     t1 = threading.Thread(target=run_execute_mape, daemon=True)
     threads.append(t1)
-    
     if approach == "harmone":
-        # For HarmonE, also run t2 (drift detection)
         t2 = threading.Thread(target=run_execute_drift, daemon=True)
         threads.append(t2)
     elif approach == "switch+retrain":
-        # For Switch + Retrain, run periodic retraining (t3)
         t3 = threading.Thread(target=run_periodic_retrain, daemon=True)
         threads.append(t3)
-elif approach in ["single", "single+retrain"]:
-    print("Single model approach selected: No dynamic model switching will be executed.")
-    if approach == "single+retrain":
-        # For single+retrain, run only periodic retraining (t3)
+
+elif approach.startswith("single"):
+    print(f"Single model approach: {approach}")
+    if "+retrain" in approach:
         t3 = threading.Thread(target=run_periodic_retrain, daemon=True)
         threads.append(t3)
+
 else:
-    print("Unknown approach configuration. No management threads will be started.")
+    print(f"Unknown approach '{approach}'. No management threads started.")
 
 for t in threads:
     t.start()
 
-# Keep the script running indefinitely
-exit_event = threading.Event()
-exit_event.wait()
+threading.Event().wait()

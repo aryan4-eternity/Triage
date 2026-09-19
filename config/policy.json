@@ -1,0 +1,110 @@
+{
+  "_comment": "AegisML policy configuration. All numeric values must have provenance.",
+  "_version": "2026-09-19.1",
+  "_date": "2026-09-19",
+
+  "version": "2026-09-19.1",
+  "active_profile": "balanced",
+  "persistence": 2,
+  "epsilon": 0.1,
+  "learning_enabled": false,
+
+  "profiles": {
+    "balanced": {
+      "w_acc": 1.0, "w_e": 0.8, "w_l": 0.4,
+      "w_c": 0.3, "w_eq": 1.4, "w_r": 0.4
+    },
+    "energy_first": {
+      "w_acc": 0.6, "w_e": 1.6, "w_l": 0.4,
+      "w_c": 0.5, "w_eq": 1.4, "w_r": 0.5
+    },
+    "accuracy_first": {
+      "w_acc": 1.8, "w_e": 0.3, "w_l": 0.3,
+      "w_c": 0.2, "w_eq": 1.4, "w_r": 0.2
+    }
+  },
+
+  "actions": {
+    "OBSERVE": {
+      "risk": 0.0, "energy_uj": 0,
+      "latency_factor": 0.0, "cost_factor": 0.0,
+      "effect": {},
+      "guards": []
+    },
+
+    "SWITCH_MODEL": {
+      "risk": 0.2,
+      "energy_uj": 500,
+      "_energy_provenance": "TODO(calibrate) — placeholder until profile_models.py run",
+      "latency_factor": 0.1, "cost_factor": 0.02,
+      "parameterised_by": "model",
+      "effect_source": "config/hardware.json#model_profiles",
+      "effect": {
+        "lstm":   { "accuracy":  0.10, "energy":  0.05, "latency":  0.05 },
+        "svm":    { "accuracy": -0.05, "energy": -0.30, "latency": -0.25 },
+        "linear": { "accuracy": -0.12, "energy": -0.48, "latency": -0.40 }
+      },
+      "guards": [
+        { "field": "params.model",          "op": "ne",  "value": "$active_model" },
+        { "field": "equity_review_pending", "op": "eq",  "value": false }
+      ]
+    },
+
+    "BATCH_INFERENCE": {
+      "risk": 0.15,
+      "energy_uj": 0,
+      "latency_factor": 0.1, "cost_factor": 0.0,
+      "effect": { "energy": -0.30, "latency": 0.10, "accuracy": 0.0 },
+      "_effect_provenance": "TODO(calibrate) — batch profiling from profile_models.py",
+      "guards": [
+        { "field": "serving.batch_size", "op": "lt", "value": 8 }
+      ]
+    },
+
+    "LOWER_SAMPLING": {
+      "risk": 0.10,
+      "energy_uj": 0,
+      "latency_factor": 0.05, "cost_factor": 0.0,
+      "effect": { "energy": -0.15, "latency": 0.0, "accuracy": -0.02 },
+      "guards": [
+        { "field": "serving.sampling_rate", "op": "gt", "value": 0.25 }
+      ]
+    },
+
+    "REUSE_VERSION": {
+      "risk": 0.25,
+      "energy_uj": 2000,
+      "_energy_provenance": "TODO(calibrate) — placeholder",
+      "latency_factor": 0.2, "cost_factor": 0.05,
+      "parameterised_by": "version",
+      "effect": { "accuracy": 0.10, "drift": -0.60 },
+      "guards": [
+        { "field": "archived_versions",     "op": "gte", "value": 1 },
+        { "field": "best_version_kl",       "op": "lt",  "value": 0.75 },
+        { "field": "equity_review_pending", "op": "eq",  "value": false }
+      ]
+    },
+
+    "RETRAIN_CURRENT": {
+      "risk": 0.55,
+      "energy_uj": 4200000,
+      "_energy_provenance": "TODO(calibrate) — placeholder; run profile_models.py --retrain",
+      "latency_factor": 0.9, "cost_factor": 0.88,
+      "effect": { "accuracy": 0.06, "drift": -0.85, "energy": 0.91 },
+      "_effect_provenance": "TODO(calibrate) — placeholder",
+      "guards": [
+        { "field": "drift_window_rows",               "op": "gte", "value": 1200 },
+        { "field": "cooldown_elapsed_s.RETRAIN_CURRENT", "op": "gte", "value": 600 },
+        { "field": "equity_review_pending",           "op": "eq",  "value": false }
+      ]
+    },
+
+    "EQUITY_REVIEW": {
+      "risk": 0.15,
+      "energy_uj": 0,
+      "latency_factor": 0.0, "cost_factor": 0.0,
+      "effect": { "equity": -0.50 },
+      "guards": []
+    }
+  }
+}

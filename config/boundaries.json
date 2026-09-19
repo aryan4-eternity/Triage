@@ -1,0 +1,44 @@
+{
+  "_comment": "Boundary config for AegisML ANALYZE stage. See docs/POLICY_ENGINE.md §1.",
+  "_provenance": "hard bounds from CONTRACTS.md; calibrate latency/equity from a baseline run",
+  "_date": "2026-09-19",
+
+  "window": 20,
+  "k": 2.0,
+  "persistence": 2,
+
+  "metrics": {
+    "accuracy.r2": {
+      "direction": "lower",
+      "hard_floor": 0.70,
+      "_note": "HarmonE min_score=0.78; hard floor is more conservative"
+    },
+    "drift.kl_div": {
+      "direction": "upper",
+      "hard_ceiling": 0.75,
+      "_note": "HarmonE drift threshold — kept identical for cross-arm comparability"
+    },
+    "latency.p95_ms": {
+      "direction": "upper",
+      "hard_ceiling": 50.0,
+      "_note": "TODO(calibrate): set from baseline run mean + 3σ"
+    },
+    "energy.normalized": {
+      "direction": "upper",
+      "mode": "integral",
+      "original_threshold": 1.0,
+      "recovery_rate": 0.95,
+      "_note": "HarmonE integral controller — kept verbatim"
+    },
+    "equity.gap": {
+      "direction": "upper",
+      "hard_ceiling": 0.15,
+      "_note": "Max R² gap between best and worst station"
+    },
+    "equity.worst_r2": {
+      "direction": "lower",
+      "hard_floor": 0.60,
+      "_note": "TODO(calibrate): set from baseline run"
+    }
+  }
+}
