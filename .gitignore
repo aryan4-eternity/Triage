@@ -1,0 +1,55 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Byte-compiled
+*.pyc
+
+# Virtual envs
+env/
+ENV/
+
+# Model artifacts (large binary files)
+models/*.pth
+models/*.pkl
+artifacts/*.pkl
+
+# Data (PeMS can't be redistributed; synth data is regenerated)
+data/pems/flow_data_train.csv
+data/pems/flow_data_test.csv
+
+# Knowledge runtime files (generated at runtime)
+knowledge/predictions.csv
+knowledge/drift.csv
+knowledge/mape_log.csv
+knowledge/drift_kl.json
+knowledge/review.json
+
+# SQLite DB (runtime)
+knowledge/aegis.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# pytest cache
+.pytest_cache/
+.mypy_cache/
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml

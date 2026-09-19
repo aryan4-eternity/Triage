@@ -1,0 +1,13 @@
+{
+    "last_line": 0,
+    "current_energy_threshold": 1,
+    "linear_version": 1,
+    "lstm_version": 1,
+    "svm_version": 1,
+    "ema_scores": {
+        "lstm": 0.82,
+        "linear": 0.75,
+        "svm": 0.79
+    },
+    "recovery_cycles": 0
+}
