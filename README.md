@@ -1,263 +1,150 @@
-# HarmonE
+# AegisML — extending HarmonE
 
-HarmonE is a self-adaptive framework for sustainable MLOps pipelines. It integrates a dynamic adaptation mechanism based on the MAPE-K loop to balance energy consumption and predictive accuracy by managing model switching, selective retraining, and versioned model reuse.
+**HarmonE decides *which model* to run.
+AegisML decides *what to do at all* — where switching models is one tactic
+among nine, chosen by a multi-objective utility with explicit eligibility
+guards and a safety constraint that sits outside the utility.**
 
-This documentation covers setup instructions, baseline configurations, and details about key files and directories used in HarmonE.
-
----
-
-## 1. Overview
-
-- **HarmonE** continuously monitors system metrics (e.g., prediction accuracy and energy consumption) and adapts model usage at runtime.
-- **Model Repository:**  
-  - The `models/` folder stores the current versions of the models available for inference.
-  - The `versionedMR/` folder archives previous versions of models after retraining.
-- **Model Configuration:**  
-  - The file `knowledge/model.csv` stores the name of the model currently being used (e.g., `lstm`, `svm`, or `linear`).
-
-## 2. Setup Instructions
-
-### 2.1 Environment Setup
-
-1. **Create a Virtual Environment:**  
-   Isolate the HarmonE project by creating and activating a Python virtual environment:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-2. **Install Dependencies:**  
-   Install all required Python packages:
-   ```bash
-   pip install torch --index-url https://download.pytorch.org/whl/cpu
-   pip install -r requirements.txt
-   ```
-
-### 2.2 Permissions and Platform Requirements
-
-- **Linux Requirement:**  
-  This documentation assumes a Linux system environment.
-- **pyRAPL Usage:**  
-  The `pyRAPL` library (used for energy measurement) works only on Intel processors. To enable powercap functionality, set the following permissions:
-  ```bash
-  sudo chmod -R a+r /sys/class/powercap/intel-rapl
-  ```
-
-## 3. Working with the PEMS Dataset
-
-### 3.1 Obtaining and Preparing PEMS Data
-
-Due to privacy restrictions, the PEMS dataset cannot be made publicly available directly. However, if you have access to the PEMS dataset from the California Department of Transportation, please follow these steps to integrate the data into HarmonE:
-
-1. **Download the Data:**
-   - Obtain the raw CSV files from the California PEMS website. Note that the dataset may originally be in MATLAB format; you might need to convert it to CSV. The available CSV files should include a column named "Flow (Veh/5 Minutes)" which represents the traffic flow measurements.
-
-2. **Place CSV Files in the Project:**
-   - Create the folder structure for the raw data:
-     ```bash
-     mkdir -p data/pems/raw
-     ```
-   - Place all your PEMS CSV files into the `data/pems/raw/` directory.
-
-3. **Process and Split the Data:**
-   - The provided script (`tools/store_pems.py`) will read all CSV files from `data/pems/raw/`, extract the **"Flow (Veh/5 Minutes)"** column, and merge them.
-   - The script splits the merged data into two files:
-     - `data/pems/flow_data_train.csv` – Contains a smaller portion (default 10%) of the data used for training the first version of models.
-     - `data/pems/flow_data_test.csv` – Contains the larger portion (default 90%) of the data used for simulating the system.
-   - Run the script with:
-     ```bash
-     python3 tools/store_pems.py --train_ratio 0.1
-     ```
-     You can adjust the `--train_ratio` parameter if needed.
-
-**Assumptions:**
-- Each CSV file in `data/pems/raw/` has a column labeled exactly as **"Flow (Veh/5 Minutes)"**.
-- The training data (the first portion of the merged data) is used for training the initial model version.
-- The test data (the remaining data) is used for system simulation and evaluation.
-
-This setup ensures that you have a properly split dataset for both training your models and running the full system simulation in HarmonE.
-
-### 3.2 Inducing Drift in PEMS Test Data
-
-To simulate dta drift in your traffic flow data, you can use the `tools/induce_drift.py` script. This script allows you to interactively define drift regions and specify the magnitude of drift via scale and shift adjustments. The process is visualized with before-and-after plots for easy comparison.
-
-> Note: The HarmonE framework can be used without drift induction—this script is optional for robustness testing.
-
-**Steps:**
-
-1. **Prepare the Data:**  
-   Place your PEMS test data file in CSV format at:  
-   ```
-   data/pems/flow_data_test.csv
-   ```
-   The CSV should have a column labeled `flow` (if your original column is different, consider renaming it or updating the script).
-
-2. **Run the Drift Induction Script:**  
-   Execute the script by running:
-   ```bash
-   python3 tools/induce_drift.py
-   ```
-3. **Interactive Prompts:**  
-   - The script will first display the original flow data in a plot.
-   - You will be prompted to enter the number of drift regions you wish to induce.
-   - For each drift region, you will be asked:
-     - **Start Index:** The starting row index of the drift region.
-     - **End Index:** The ending row index of the drift region.
-     - **Scale Factor:** The multiplicative adjustment to apply to the `flow` values.
-     - **Shift Amount:** The additive adjustment to apply to the `flow` values.
-   - After entering the parameters, the script applies the changes and shows a comparison plot (original vs. drifted).
-
-4. **Confirm Changes:**  
-   When prompted, confirm whether to save the drifted data back to the test file. If you decline, no changes will be made.
-
-**Assumptions:**
-- The CSV files in the PEMS dataset are expected to have a consistent format.
-- The test data file is named `flow_data_test.csv` and is located in the `data/pems/` directory.
-- The drift induction is performed on the `flow` column, which should represent the traffic flow (in vehicles per 5 minutes).
-
-This script provides a flexible and visually guided approach to introduce controlled drift into your test data, enabling you to evaluate the robustness of the HarmonE framework under shifting conditions.
-
-
-## 4 Preparing the Codebase
-
-1. **Cleanup Script:**  
-   Run the cleanup script to remove stale models and reset relevant CSV files. Ensure the script is executable:
-   ```bash
-   chmod +x cleanup.sh
-   ./cleanup.sh
-   ```
-
-2. **Model Training:**  
-   Populate the current model repository and store the first version in the versioned model repository:
-   ```bash
-   python3 tools/train_models.py
-   ```
+> **Attribution:** This repo extends **HarmonE** (MIT, © 2025 Hiya Bhatt),
+> a self-adaptive MLOps loop for traffic-flow regression. The MAPE-K skeleton,
+> inference loop, and energy instrumentation are HarmonE's. See `NOTICE.md`.
 
 ---
 
-## 5. Approach Configurations
+## What's new in AegisML
 
-The system supports nine approaches, categorized into adaptative and single-model approaches. A shell script named `set_approach.sh` is used to select the desired approach. **Make sure to set execute permissions:**
+| Dimension | HarmonE | AegisML |
+|---|---|---|
+| Actions | Switch between 3 models | 9 heterogeneous tactics |
+| Metrics | R², energy | Accuracy, drift, latency, energy, cost, equity |
+| Decision | argmax EMA score | Multi-objective utility + guards |
+| Eligibility | `recovery_cycles` cooldown | Declarative guards per action |
+| Reasoning | None persisted | Full candidate table (incl. rejected) |
+| Outcome tracking | None | Outcome ledger; did the fix work? |
+| Safety | Not modelled | `equity_review_pending` hard blocks model promotion |
+
+---
+
+## Quick start
+
 ```bash
-chmod +x set_approach.sh
+# 1 — install deps
+make setup
+
+# 2 — generate synthetic data
+make data
+
+# 3 — train models
+make train
+
+# 4 — run HarmonE baselines (verify nothing is broken)
+make base
+
+# 5 — run AegisML
+make demo
+
+# 6 — run a specific scenario
+make scenario S=drift_benign
 ```
-> "Before running any approach configuration, please ensure you have completed the steps outlined in **Section 4: Preparing the Codebase**."
 
-
-### 5.1 Dynamic Adaptation Baselines
-
-- **harmone:**  
-  Runs the full HarmonE system with both dynamic model switching (thread `t1` executing `execute_mape`) and drift detection (thread `t2` executing `execute_drift`).
-  
-- **switch:**  
-  Runs only thread `t1` (i.e., only monitoring via `execute_mape`).
-
-- **switch+retrain:**  
-  Runs thread `t1` (monitoring) and thread `t3` (periodic retraining).
-
-### 5.2 Single-Model Baselines
-
-These baselines disable dynamic model switching. Instead, the inference system runs a single model defined in `knowledge/model.csv`.
-
-- **Without Retraining:**  
-  - `single-lstm`
-  - `single-svm`
-  - `single-linear`
-
-- **With Retraining:**  
-  These options run periodic retraining (thread `t3`) in addition to using a fixed model.
-  - `single-lstm+retrain`
-  - `single-svm+retrain`
-  - `single-linear+retrain`
-
-**Note:** For single-model baselines, the `set_approach.sh` script automatically updates `knowledge/model.csv` to store the model name being used.
+On Windows/macOS (no Intel RAPL): set `AEGIS_ENERGY=estimator` (auto-selected).
+On Linux/Intel: `AEGIS_ENERGY=rapl` for physically measured energy.
 
 ---
 
-## 6. Running the System
+## Energy backends
 
-### 6.1 Running HarmonE
+| Backend | `measured` | Requires |
+|---|---|---|
+| `rapl` | ✅ True | Linux + Intel CPU + powercap perms |
+| `codecarbon` | ❌ False | `pip install codecarbon` |
+| `estimator` | ❌ False | Nothing — always available |
 
-1. **Set the Baseline:**  
-   For full dynamic adaptation, run:
-   ```bash
-   ./set_approach.sh harmone
-   ```
-
-2. **Start the Inference System:**  
-   In one terminal (with the virtual environment activated), run:
-   ```bash
-   python3 inference.py
-   ```
-   This starts the inference subsystem that uses the models from the `models/` folder.
-
-3. **Start the Management System:**  
-   In a separate terminal (with the virtual environment activated), run:
-   ```bash
-   python mape/manage.py
-   ```
-   This will launch the appropriate threads (t1 and t2) for monitoring and drift detection.  
-   *If Python packages are not found, ensure you have activated your virtual environment and installed all dependencies.*
+Select with `AEGIS_ENERGY=rapl|codecarbon|estimator|auto` (default: `auto`).
+Every row in `predictions.csv` carries `energy_backend`.
+Mixed-backend runs are refused by MONITOR.
 
 ---
 
-### 6.2 Running Baselines
+## Repository layout
 
-1. **Adaptive Baselines:**  
-   - For **switch**:
-     1. Set the baseline:
-        ```bash
-        ./set_approach.sh switch
-        ```
-     2. Start the inference system:
-        ```bash
-        python3 inference.py
-        ```
-     3. In a separate terminal, start the management system:
-        ```bash
-        python mape/manage.py
-        ```
-   - For **switch+retrain**:
-     1. Set the baseline:
-        ```bash
-        ./set_approach.sh switch+retrain
-        ```
-     2. Start the inference system:
-        ```bash
-        python3 inference.py
-        ```
-     3. In a separate terminal, start the management system:
-        ```bash
-        python mape/manage.py
-        ```
-
-2. **Single-Model Baselines:**
-
-   - **Without Retraining:**  
-     To run a single model (e.g., LSTM):
-     1. Set the baseline:
-        ```bash
-        ./set_approach.sh single-lstm
-        ```
-     2. Start the inference system (do not launch the management system):
-        ```bash
-        python3 inference.py
-        ```
-   
-   - **With Retraining:**  
-     For a single model with retraining (e.g., SVM):
-     1. Set the baseline:
-        ```bash
-        ./set_approach.sh single-svm+retrain
-        ```
-     2. Start the inference system:
-        ```bash
-        python3 inference.py
-        ```
-     3. In a separate terminal, start the management system:
-        ```bash
-        python mape/manage.py
-        ```
-     This updates `knowledge/model.csv` to `svm` and runs periodic retraining (thread t3).
+```
+HarmonE-main/
+├── inference.py          MODIFIED: model cache, serving.json, station_id, EnergyMeter
+├── retrain.py            MODIFIED: --model flag, shared scaler
+├── mape/                 UNCHANGED (9 HarmonE approaches, all still runnable)
+├── aegis/                NEW — AegisML control plane
+│   ├── core/             monitor, analyze, plan, execute, learn, boundaries, utility, guards
+│   │   └── metrics/      accuracy, drift, latency, energy, equity
+│   ├── energy/           portable energy backend abstraction
+│   ├── actuators/        file-based actuators (model_switch, version_reuse, serving_cfg, …)
+│   └── store.py          SQLite knowledge store
+├── dashboard/app.py      NEW — Streamlit dashboard with candidate table
+├── tools/
+│   ├── synth_data.py     NEW — deterministic synthetic data generator
+│   ├── profile_models.py NEW — warm-cache energy/latency profiling
+│   └── calibrate_effects.py  NEW — measures effect vectors
+├── config/               policy.json, boundaries.json, hardware.json
+├── tests/                pytest test suite
+├── docs/                 design documentation
+├── NOTICE.md             attribution (read this)
+└── LICENSE               MIT, © 2025 Hiya Bhatt (unchanged)
+```
 
 ---
+
+## Nine approaches (all runnable)
+
+```bash
+./set_approach.sh harmone          # original HarmonE
+./set_approach.sh switch
+./set_approach.sh switch+retrain
+./set_approach.sh single-lstm
+./set_approach.sh single-svm
+./set_approach.sh single-linear
+./set_approach.sh single-lstm+retrain
+./set_approach.sh single-svm+retrain
+./set_approach.sh single-linear+retrain
+./set_approach.sh aegis            # AegisML (new)
+```
+
+---
+
+## Key design decisions
+
+**Local-first, scientifically required.** HarmonE's core asset is physically
+measured CPU energy via Intel RAPL, which is unavailable in cloud functions.
+AegisML keeps the local architecture and adds a portable estimator fallback.
+
+**Safety as a constraint, not a weight.** When `equity_review_pending` is true,
+no utility score — however high — can promote a new model. The guard is a hard
+filter, not a large negative weight.
+
+**Rejected actions are the paper figure.** Every decision persists the full
+candidate table including rejected actions with their guard reasons and utility
+terms. That's what distinguishes this from a pipeline.
+
+---
+
+## Running experiments
+
+```bash
+make eval          # 8 arms × 8 scenarios × 20 seeds → results.md
+make scenario S=equity_shift
+```
+
+See `docs/ARCHITECTURE.md` §9 for the full evaluation table specification.
+
+---
+
+## Bugs fixed in the base (Phase 1)
+
+| Bug | Effect | Fixed in |
+|---|---|---|
+| BUG-1: version reuse no-op | Archived model was never actually restored | T1.1 |
+| BUG-3: model reloads every inference | Energy measurements dominated by disk I/O | T1.2 |
+| BUG-2: column name mismatch | `energy_uJ` vs `energy` — worked only by accident | T1.4 |
+| BUG-4: scaler leakage | Three different scalers fit on different data | T1.4 |
+| BUG-5: E_M=25000 hardcoded | energy_normalized could go negative or >1 | T1.3 |
+
+Each fix is measured with before/after results. See `results.md`.
