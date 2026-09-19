@@ -83,16 +83,23 @@ def plan_mape():
 
 
 def plan_drift():
-    """Decide if retraining is needed or if an older version can be used."""
+    """
+    Decide if retraining is needed or if an older version can be used.
+
+    BUG-1 FIX: best_version is now a dict {"dir": ..., "kl": ..., "model": ...}
+    so execute_drift() can resolve the actual model artifact.
+    """
     drift = analyse_drift()
     if not drift or not drift["drift_detected"]:
         print("✅ No drift detected. No action required.")
         return None
 
     if drift["best_version"]:
-        print(f"🔄 Switching to lower KL divergence model: {drift['best_version']}")
-        return {"action": "replace", "version": drift["best_version"]}
-    
+        best = drift["best_version"]
+        print(f"🔄 Switching to lower KL divergence model version: "
+              f"{best['dir']}  (KL={best['kl']:.4f})")
+        return {"action": "replace", "version": best}
+
     print("🔧 Drift detected! No previous version available. Retraining required.")
     return {"action": "retrain"}
 
