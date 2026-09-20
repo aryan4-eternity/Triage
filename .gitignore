@@ -37,6 +37,10 @@ knowledge/review.json
 # SQLite DB (runtime)
 knowledge/aegis.sqlite
 
+# Project-internal files
+CLAUDE.md
+PROGRESS.md
+
 # OS
 .DS_Store
 Thumbs.db
