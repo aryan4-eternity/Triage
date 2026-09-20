@@ -4,7 +4,7 @@
 
 ---
 
-## What Triage does
+## What Triage does:
 
 Triage is a self-adaptive MLOps controller for traffic-flow regression. It monitors six metric families in real time and selects the best action from nine heterogeneous tactics — not just switching models, but batching, version reuse, rate reduction, equity review, and more.
 
