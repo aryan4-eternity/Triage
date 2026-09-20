@@ -1,7 +1,18 @@
-pandas
-numpy
-matplotlib
-pyRAPL
-scikit-learn
-pymongo
-tqdm
+# Core HarmonE dependencies
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+torch>=2.0.0
+tqdm>=4.65.0
+
+# AegisML additions
+pydantic>=2.0.0
+streamlit>=1.28.0
+
+# Energy backends (optional — install what your hardware supports)
+# pyRAPL         — Intel/Linux RAPL; install manually: pip install pyrapl
+# codecarbon     — hardware-model energy estimate: pip install codecarbon
+
+# Extras
+matplotlib>=3.7.0
