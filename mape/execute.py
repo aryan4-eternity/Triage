@@ -1,5 +1,5 @@
 """
-mape/execute.py — HarmonE MAPE-K: Execute stage.
+mape/execute.py — Triage MAPE-K: Execute stage.
 
 BUG-1 FIX (T1.1): execute_drift() now receives a dict from plan_drift() that
 contains the version DIRECTORY.  It resolves the actual model artifact

@@ -4,7 +4,7 @@ tools/evaluate.py — AegisML evaluation harness.
 8 arms × 8 scenarios × 20 seeds → results.md
 
 Arms: single-lstm, single-linear, single-svm, single-lstm+retrain,
-      switch, switch+retrain, harmone, aegis
+      switch, switch+retrain, Triage, aegis
 
 Metrics (ARCHITECTURE.md §9):
   - Mean R² over the run
@@ -50,7 +50,7 @@ ARMS = [
     "single-svm",
     "switch",
     "switch+retrain",
-    "harmone",
+    "triage",
     "aegis",
 ]
 
@@ -61,7 +61,7 @@ _ARM_PROFILE: dict[str, str] = {
     "single-svm":        "balanced",
     "switch":            "balanced",
     "switch+retrain":    "balanced",
-    "harmone":           "balanced",
+    "triage":            "balanced",
     "aegis":             "balanced",
 }
 
@@ -72,7 +72,7 @@ _ARM_MODEL: dict[str, str] = {
     "single-svm":        "svm",
     "switch":            "lstm",
     "switch+retrain":    "lstm",
-    "harmone":           "lstm",
+    "triage":            "lstm",
     "aegis":             "lstm",
 }
 

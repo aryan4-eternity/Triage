@@ -2,11 +2,11 @@
 
 Pydantic v2 models in `aegis/core/models.py`. Nothing crosses a module boundary except these. Need a field that isn't here? Add it here first, in the same commit.
 
-HarmonE's existing files (`knowledge/mape_info.json`, `thresholds.json`, `model.csv`) keep their current shape — the base approaches depend on them. AegisML reads them and writes its own state elsewhere.
+Triage's existing files (`knowledge/mape_info.json`, `thresholds.json`, `model.csv`) keep their current shape — the base approaches depend on them. AegisML reads them and writes its own state elsewhere.
 
 ---
 
-## predictions.csv — MODIFIED from HarmonE
+## predictions.csv — MODIFIED from Triage
 
 Two new columns. Both are load-bearing for claims you want to make.
 
@@ -15,7 +15,7 @@ true_value,predicted_value,model_used,inference_time,energy_uj,station_id,energy
 412.0,408.3,lstm,0.00412,1840.0,ST_03,rapl
 ```
 
-- `energy_uj` — renamed from HarmonE's inconsistent `energy` / `energy_uJ` pair (BUG-2). One `SCHEMA` constant, imported by `inference.py`, `mape/monitor.py`, and `aegis/core/monitor.py`.
+- `energy_uj` — renamed from Triage's inconsistent `energy` / `energy_uJ` pair (BUG-2). One `SCHEMA` constant, imported by `inference.py`, `mape/monitor.py`, and `aegis/core/monitor.py`.
 - `station_id` — required for equity. Synthetic generator emits it; with real PeMS it's the station identifier.
 - `energy_backend` — `rapl` | `codecarbon` | `estimator`. **MONITOR refuses to score a window containing more than one value.** Mixed-backend energy numbers are not comparable and averaging them silently is how a paper gets retracted.
 
@@ -65,7 +65,7 @@ Produced by MONITOR. Immutable.
 
 `scenario_tag` is simulator metadata. **The controller must never read it.** `tests/test_no_scenario_leak.py` enforces this by grepping `aegis/core/`.
 
-`accuracy.ema_score` uses HarmonE's exact formula — `β·r2 + (1−β)·(1−energy_norm)`, then `γ`-smoothed. Keep it for comparability with the base arms, but note in the docstring that it *already* blends energy into accuracy. AegisML's utility treats the families separately, so use raw `r2` for accuracy severity and `ema_score` only where you're reproducing base behaviour. Mixing the two is a subtle double-counting bug — energy would enter the utility twice.
+`accuracy.ema_score` uses Triage's exact formula — `β·r2 + (1−β)·(1−energy_norm)`, then `γ`-smoothed. Keep it for comparability with the base arms, but note in the docstring that it *already* blends energy into accuracy. AegisML's utility treats the families separately, so use raw `r2` for accuracy severity and `ema_score` only where you're reproducing base behaviour. Mixing the two is a subtle double-counting bug — energy would enter the utility twice.
 
 ---
 
@@ -83,9 +83,9 @@ Produced by MONITOR. Immutable.
 }
 ```
 
-`mode ∈ {dynamic, hard, integral}`. `integral` is HarmonE's energy controller (`thr += 0.95·(orig − used)`), routed through the same report type so the dashboard renders every boundary the same way.
+`mode ∈ {dynamic, hard, integral}`. `integral` is Triage's energy controller (`thr += 0.95·(orig − used)`), routed through the same report type so the dashboard renders every boundary the same way.
 
-`hard_ceiling` for KL is 0.75 — HarmonE's drift threshold, kept so drift detection stays comparable across arms.
+`hard_ceiling` for KL is 0.75 — Triage's drift threshold, kept so drift detection stays comparable across arms.
 
 ---
 
@@ -252,7 +252,7 @@ Effects are **normalised deltas**: `-0.30` means "removes 30% of that family's c
 }
 ```
 
-`hard_ceiling` for KL stays at HarmonE's 0.75 so drift detection is identical across arms. Latency and equity ceilings need calibrating from a healthy baseline run — `mean ± 3σ`, never laxer than the domain limit.
+`hard_ceiling` for KL stays at Triage's 0.75 so drift detection is identical across arms. Latency and equity ceilings need calibrating from a healthy baseline run — `mean ± 3σ`, never laxer than the domain limit.
 
 ---
 
@@ -281,4 +281,4 @@ class Actuator(Protocol):
     def open_equity_review(self, incident: Incident) -> ActionOutcome: ...
 ```
 
-Two implementations of `Actuator`: `file` (writes the real `knowledge/` files HarmonE reads) and `fake` (records calls, for tests). The `file` one is the production path — there's no "local vs cloud" split here, because the whole system is local by design.
+Two implementations of `Actuator`: `file` (writes the real `knowledge/` files Triage reads) and `fake` (records calls, for tests). The `file` one is the production path — there's no "local vs cloud" split here, because the whole system is local by design.

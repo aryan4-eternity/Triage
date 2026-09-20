@@ -65,7 +65,7 @@ efd630c  fix(T1.1): BUG-1 — repair version reuse in mape/analyse + execute
 c4991cc  docs(T0.4): attribution — NOTICE.md + updated README.md
 a19120b  feat(T0.2): synthetic data generator
 098ffab  feat(T0.1): energy abstraction — EnergyMeter protocol + 3 backends
-fb4cfac  chore: init repo — HarmonE base + doc pack + PROGRESS tracker
+fb4cfac  chore: init repo — Triage base + doc pack + PROGRESS tracker
 ```
 
 ---
@@ -78,7 +78,7 @@ fb4cfac  chore: init repo — HarmonE base + doc pack + PROGRESS tracker
 - [x] Energy readings carry their backend label in every predictions.csv row
 - [x] Determinism — seeded RNG, explicit tie-breaks (R then E then name)
 - [x] Safety invariant: equity_review_pending blocks all model-promoting actions
-- [x] All nine HarmonE approaches still runnable via set_approach.sh
+- [x] All nine Triage approaches still runnable via set_approach.sh
 
 ## What still needs real hardware
 

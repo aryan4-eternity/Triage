@@ -2,7 +2,7 @@
 tests/test_boundaries.py — Boundary computation tests (POLICY_ENGINE.md §7).
 
 Tests:
-- test_energy_integral_matches_harmone_formula
+- test_energy_integral_matches_Triage_formula
 - test_energy_threshold_clamped_below
 - test_cold_start_uses_hard_bounds
 - test_persistence_suppresses_single_snapshot_spike
@@ -22,9 +22,9 @@ from aegis.core.boundaries import compute_boundary
 
 class TestEnergyIntegral:
 
-    def test_energy_integral_matches_harmone_formula(self):
+    def test_energy_integral_matches_Triage_formula(self):
         """
-        HarmonE integral controller formula (cite mape/analyse.py):
+        Triage integral controller formula (cite mape/analyse.py):
             new_thr = current_thr + 0.95 * (orig_thr - used_energy)
 
         The energy boundary mode is now "dynamic" (raw µJ with hard ceiling),

@@ -1,6 +1,6 @@
-# AegisML — Architecture (built on HarmonE)
+# AegisML — Architecture (built on Triage)
 
-**One line:** HarmonE decides *which model to run*. AegisML decides *what to do at all* — where switching models is one tactic among nine, chosen by a multi-objective utility with explicit eligibility guards and a safety constraint that sits outside the utility.
+**One line:** Triage decides *which model to run*. AegisML decides *what to do at all* — where switching models is one tactic among nine, chosen by a multi-objective utility with explicit eligibility guards and a safety constraint that sits outside the utility.
 
 Read `docs/BASE_PROJECT_AUDIT.md` first. This document assumes you know what's in the base repo.
 
@@ -9,10 +9,10 @@ Read `docs/BASE_PROJECT_AUDIT.md` first. This document assumes you know what's i
 ## 0. Three decisions that shape everything
 
 **1. Local-first, and this time it's scientific, not convenience.**
-The earlier AWS-heavy plan is dead. HarmonE's core asset is *physically measured CPU energy* via Intel RAPL, and RAPL is unavailable in Lambda, Fargate, and ordinary EC2. Porting to AWS would force you to replace real measurement with an estimate — trading your strongest claim for an architecture diagram. So: the energy-measured loop runs on a Linux/Intel box, and AWS is an **optional deployment arm** that carries an explicitly-labelled estimated-energy backend. If you have no Intel/Linux machine, see `docs/ENERGY.md`.
+The earlier AWS-heavy plan is dead. Triage's core asset is *physically measured CPU energy* via Intel RAPL, and RAPL is unavailable in Lambda, Fargate, and ordinary EC2. Porting to AWS would force you to replace real measurement with an estimate — trading your strongest claim for an architecture diagram. So: the energy-measured loop runs on a Linux/Intel box, and AWS is an **optional deployment arm** that carries an explicitly-labelled estimated-energy backend. If you have no Intel/Linux machine, see `docs/ENERGY.md`.
 
 **2. Extend in place, don't rewrite.**
-You are not starting a new repo. You are adding `aegis/` alongside `mape/`, adding a tenth approach (`aegis`) to `approach.conf`, and leaving all nine HarmonE approaches working untouched. This buys you six baselines for free and makes the ablation honest: same inference process, same energy meter, same data, only the Plan stage differs.
+You are not starting a new repo. You are adding `aegis/` alongside `mape/`, adding a tenth approach (`aegis`) to `approach.conf`, and leaving all nine Triage approaches working untouched. This buys you six baselines for free and makes the ablation honest: same inference process, same energy meter, same data, only the Plan stage differs.
 
 **3. Fairness becomes equity, because traffic data has no protected attributes.**
 PEMS flow has no gender or age. Dropping the responsible-AI arm loses a pillar; faking one is worse. The honest substitute is **performance equity across sensor stations**: does the adaptation policy improve aggregate R² by sacrificing accuracy on a subset of stations? That's a real construct in traffic forecasting, measurable from data you already have, and it keeps the "safety is a constraint, not a weight" argument intact.
@@ -22,7 +22,7 @@ PEMS flow has no gender or age. Dropping the responsible-AI arm loses a pillar; 
 ## 1. System context
 
 ```
-┌──────────────────────────── UNCHANGED FROM HarmonE ────────────────────────┐
+┌──────────────────────────── UNCHANGED FROM Triage ────────────────────────┐
 │  inference.py                                                              │
 │    reads knowledge/model.csv + knowledge/serving.json  ◄── NEW: exec params│
 │    runs LSTM | SVM | Ridge on a 5-step window                              │
@@ -50,19 +50,19 @@ PEMS flow has no gender or age. Dropping the responsible-AI arm loses a pillar; 
               Streamlit dashboard (reads knowledge/, read-only)
 ```
 
-Nothing above the dashed line changes structurally. You keep HarmonE's decoupling: the managed system never imports the managing system.
+Nothing above the dashed line changes structurally. You keep Triage's decoupling: the managed system never imports the managing system.
 
 ---
 
 ## 2. Six metric families
 
-HarmonE monitors two. AegisML monitors six, which is what makes a *heterogeneous* action space meaningful.
+Triage monitors two. AegisML monitors six, which is what makes a *heterogeneous* action space meaningful.
 
 | Family | Metric | Source | New? |
 |---|---|---|---|
-| Accuracy | R², MAE, EMA-smoothed score | `predictions.csv` | HarmonE |
-| Energy | µJ/inference, normalised, EMA | `EnergyMeter` | HarmonE |
-| Drift | KL divergence, PSI on the flow window | `predictions.csv` | HarmonE (KL) + PSI |
+| Accuracy | R², MAE, EMA-smoothed score | `predictions.csv` | Triage |
+| Energy | µJ/inference, normalised, EMA | `EnergyMeter` | Triage |
+| Drift | KL divergence, PSI on the flow window | `predictions.csv` | Triage (KL) + PSI |
 | Latency | p50/p95 `inference_time` | `predictions.csv` | **new** |
 | Cost | wall-clock + energy → ₹/1k inferences | derived | **new** |
 | Equity | worst-station R², max-min R² gap | `predictions.csv` + station id | **new** |
@@ -73,7 +73,7 @@ Two columns get added to `predictions.csv`: `station_id` and `energy_backend`. B
 
 ## 3. Action catalogue
 
-HarmonE has three tactics (switch, replace-with-version, retrain). AegisML has nine. The new ones matter because they give the controller genuinely cheap options — without them, a multi-objective scorer has nothing interesting to choose between.
+Triage has three tactics (switch, replace-with-version, retrain). AegisML has nine. The new ones matter because they give the controller genuinely cheap options — without them, a multi-objective scorer has nothing interesting to choose between.
 
 | Action | What it does | Actuation | Reversible | Risk |
 |---|---|---|---|---|
@@ -95,7 +95,7 @@ HarmonE has three tactics (switch, replace-with-version, retrain). AegisML has n
 
 ## 4. ANALYZE — boundaries
 
-Keep HarmonE's energy integral controller. Generalise the pattern to the other families.
+Keep Triage's energy integral controller. Generalise the pattern to the other families.
 
 **Energy (kept verbatim from the base):**
 ```
@@ -132,7 +132,7 @@ RETRAIN_CURRENT   : drift_window_rows >= 1200 AND cooldown_elapsed(RETRAIN, 600s
 SWITCH_MODEL(m)   : m != current AND ema[m] > ema[current] - 0.05
 any promoting act : NOT equity_review_pending
 ```
-HarmonE's `recovery_cycles` becomes one guard among many.
+Triage's `recovery_cycles` becomes one guard among many.
 
 **(b) Effect vectors.** Each action declares its expected normalised effect per family, **calibrated offline on your hardware**, not guessed. This is what lets you compute projected benefit without a crystal ball.
 ```json
@@ -150,7 +150,7 @@ Q(a) = Σ_families severity[f] · max(0, relief[a][f])
 ```
 The `severity ·` multiplication is the whole trick: under `DRIFT_ONLY`, accuracy severity is 0, so `RETRAIN_CURRENT`'s big accuracy effect gets multiplied by zero and all it has left is its energy cost and risk. The controller declines to retrain — and can say exactly why.
 
-ε-greedy exploration (HarmonE's `α = 0.1`) is **kept, but moved after the guard filter**, so exploration can never pick an ineligible or unsafe action. Log exploratory decisions with `exploratory: true` so they can be excluded from the evaluation.
+ε-greedy exploration (Triage's `α = 0.1`) is **kept, but moved after the guard filter**, so exploration can never pick an ineligible or unsafe action. Log exploratory decisions with `exploratory: true` so they can be excluded from the evaluation.
 
 Tie-break: lower risk, then lower energy, then action name. Deterministic.
 Floor rule: if `max U < 0`, fall back to `OBSERVE`.
@@ -159,7 +159,7 @@ Floor rule: if `max U < 0`, fall back to `OBSERVE`.
 
 ## 6. LEARN — outcome ledger
 
-HarmonE never checks whether an adaptation worked. AegisML writes an `ActionOutcome` per decision and resolves it N snapshots later: did the violated family return inside its boundary, and at what actual measured energy cost?
+Triage never checks whether an adaptation worked. AegisML writes an `ActionOutcome` per decision and resolves it N snapshots later: did the violated family return inside its boundary, and at what actual measured energy cost?
 
 Two uses:
 1. A "was the controller right?" column on the dashboard — cheap, and it's the thing judges probe.
@@ -170,7 +170,7 @@ Two uses:
 ## 7. Repo layout after extension
 
 ```
-HarmonE-main/                    ← keep the name and the LICENSE
+Triage-main/                    ← keep the name and the LICENSE
 ├── inference.py                 MODIFIED: model cache, serving.json, station_id, EnergyMeter
 ├── retrain.py                   MODIFIED: --model/--all flags, shared scaler
 ├── mape/                        UNTOUCHED — baselines must keep working
@@ -210,8 +210,8 @@ Drive these from `tools/synth_data.py` so they're deterministic and reproducible
 | Benign drift | distribution shift, R² holds | `OBSERVE` / `LOWER_SAMPLING` | **retrain rejected** — headline |
 | Recoverable drift | shift matching an archived version | `REUSE_VERSION` | the tactic you *fixed* (BUG-1) |
 | Model degradation | shift + R² collapse | `RETRAIN_CURRENT` | it retrains when justified |
-| Energy pressure | sustained LSTM overspend | `SWITCH_MODEL:linear` / `BATCH_INFERENCE` | HarmonE's case, now with cheaper alternatives |
-| Latency pressure | inflated inference time | `BATCH_INFERENCE` / `REDUCE_WINDOW` | dimension HarmonE can't see |
+| Energy pressure | sustained LSTM overspend | `SWITCH_MODEL:linear` / `BATCH_INFERENCE` | Triage's case, now with cheaper alternatives |
+| Latency pressure | inflated inference time | `BATCH_INFERENCE` / `REDUCE_WINDOW` | dimension Triage can't see |
 | Equity shift | one station's error diverges | `EQUITY_REVIEW` + promotion block | safety as constraint |
 | Weight-profile toggle | same incident, `balanced` → `accuracy_first` | different action | the policy layer is load-bearing |
 
@@ -221,7 +221,7 @@ Drive these from `tools/synth_data.py` so they're deterministic and reproducible
 
 Run every scenario × 20 seeds against the baselines you already inherited.
 
-**Arms:** `single-lstm`, `single-linear`, `single-svm`, `single-lstm+retrain`, `switch`, `switch+retrain`, `harmone`, `aegis`.
+**Arms:** `single-lstm`, `single-linear`, `single-svm`, `single-lstm+retrain`, `switch`, `switch+retrain`, `Triage`, `aegis`.
 
 | Metric | Why |
 |---|---|
@@ -234,9 +234,9 @@ Run every scenario × 20 seeds against the baselines you already inherited.
 | Unnecessary interventions (acted, no violation persisted) | precision of the policy |
 | Controller overhead (from `mape_log.csv`) | your loop must not cost more than it saves |
 
-That last row is non-optional. HarmonE logs controller energy for exactly this reason, and a multi-objective planner is heavier than an argmax. If AegisML's overhead eats its savings, **report it** — a negative result with a clean measurement beats a positive one with a hidden confound, and reviewers will check.
+That last row is non-optional. Triage logs controller energy for exactly this reason, and a multi-objective planner is heavier than an argmax. If AegisML's overhead eats its savings, **report it** — a negative result with a clean measurement beats a positive one with a hidden confound, and reviewers will check.
 
-Target claim shape: *"Against HarmonE on identical hardware and data, AegisML reduced retraining events by X% and total energy by Y% at ≤Z pp mean R², while reducing worst-station R² degradation by W pp."*
+Target claim shape: *"Against Triage on identical hardware and data, AegisML reduced retraining events by X% and total energy by Y% at ≤Z pp mean R², while reducing worst-station R² degradation by W pp."*
 
 ---
 
@@ -246,4 +246,4 @@ Target claim shape: *"Against HarmonE on identical hardware and data, AegisML re
 - Energy is **measured** where RAPL is available and **estimated** otherwise; every figure is labelled with its backend and mixed-backend runs are never averaged together.
 - Equity here means per-station performance disparity, not demographic fairness. PEMS has no protected attributes and none are invented.
 - No RL in the MVP. The transparent utility scorer is the contribution; outcome-confidence is a flagged extension.
-- BUG-3's fix changes the base system's energy profile. Report before-and-after; don't quietly compare your fixed numbers against HarmonE's published ones.
+- BUG-3's fix changes the base system's energy profile. Report before-and-after; don't quietly compare your fixed numbers against Triage's published ones.

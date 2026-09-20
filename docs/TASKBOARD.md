@@ -4,7 +4,7 @@ One task at a time. Don't start a task whose dependencies aren't checked. Tick t
 
 Format: **files it may touch** · **acceptance** · **depends on**
 
-**Standing rule, every task:** after finishing, run `./set_approach.sh harmone && python3 mape/manage.py` for one cycle. If a HarmonE approach broke, you broke your own baselines. Fix it before continuing.
+**Standing rule, every task:** after finishing, run `./set_approach.sh Triage && python3 mape/manage.py` for one cycle. If a Triage approach broke, you broke your own baselines. Fix it before continuing.
 
 ---
 
@@ -22,12 +22,12 @@ Format: **files it may touch** · **acceptance** · **depends on**
 
 - [ ] **T0.3 Base system runs end to end**
   Files: none (verification only)
-  Acceptance: `./cleanup.sh && python3 tools/train_models.py && ./set_approach.sh harmone`, then both processes. Past 400s: `predictions.csv` grows, EMA scores in `mape_info.json` move, at least one model switch occurs. **Record the console output — it's your before-picture.**
+  Acceptance: `./cleanup.sh && python3 tools/train_models.py && ./set_approach.sh Triage`, then both processes. Past 400s: `predictions.csv` grows, EMA scores in `mape_info.json` move, at least one model switch occurs. **Record the console output — it's your before-picture.**
   Depends: T0.1, T0.2
 
 - [ ] **T0.4 Attribution**
   Files: `NOTICE.md`, `README.md`
-  Acceptance: HarmonE credited with its MIT copyright line; your additions scoped explicitly; the real HarmonE citation recorded (get it from the repo — **do not reuse the fabricated arXiv ID from the earlier planning chat**).
+  Acceptance: Triage credited with its MIT copyright line; your additions scoped explicitly; the real Triage citation recorded (get it from the repo — **do not reuse the fabricated arXiv ID from the earlier planning chat**).
   Depends: —
 
 ---
@@ -51,7 +51,7 @@ Format: **files it may touch** · **acceptance** · **depends on**
 
 - [ ] **T1.4 Schema, scaler, paths**
   Files: `aegis/core/models.py` (SCHEMA), `inference.py`, `retrain.py`, `tools/train_models.py`, `mape/monitor.py`, `mape/__init__.py`, `aegis/__init__.py`
-  Acceptance: one column-name constant used everywhere (`energy_uj`); `artifacts/scaler.pkl` fit once on train data and loaded by inference and retrain; both packages importable from any CWD. HarmonE decision sequence on a fixed seed matches pre-change.
+  Acceptance: one column-name constant used everywhere (`energy_uj`); `artifacts/scaler.pkl` fit once on train data and loaded by inference and retrain; both packages importable from any CWD. Triage decision sequence on a fixed seed matches pre-change.
   Depends: T1.3
 
 **End of Phase 1:** you have a working, instrumented, bug-fixed base and three measured results to talk about. If the hackathon ended here you'd still have something.
@@ -77,7 +77,7 @@ Format: **files it may touch** · **acceptance** · **depends on**
 
 - [ ] **T2.4 ANALYZE + boundaries**
   Files: `aegis/core/{boundaries,analyze}.py`, `config/boundaries.json`, tests
-  Acceptance: all `docs/POLICY_ENGINE.md` §7 boundary tests pass, including HarmonE energy-integral parity and the new lower clamp; each of the 7 classification rules has a test that hits it.
+  Acceptance: all `docs/POLICY_ENGINE.md` §7 boundary tests pass, including Triage energy-integral parity and the new lower clamp; each of the 7 classification rules has a test that hits it.
   Depends: T2.3
 
 - [ ] **T2.5 PLAN — guards + utility**
@@ -87,7 +87,7 @@ Format: **files it may touch** · **acceptance** · **depends on**
 
 - [ ] **T2.6 Actuators**
   Files: `aegis/actuators/*.py`, `inference.py` (read `serving.json`), tests
-  Acceptance: `switch_model` writes the same `model.csv` HarmonE writes; `reuse_version` uses T1.1's repaired path; `set_serving` changes batch size and `inference.py` picks it up within one loop; `open_equity_review` writes `review.json` and sets the pending flag.
+  Acceptance: `switch_model` writes the same `model.csv` Triage writes; `reuse_version` uses T1.1's repaired path; `set_serving` changes batch size and `inference.py` picks it up within one loop; `open_equity_review` writes `review.json` and sets the pending flag.
   Depends: T2.5
 
 - [ ] **T2.7 EXECUTE + LEARN**
@@ -97,7 +97,7 @@ Format: **files it may touch** · **acceptance** · **depends on**
 
 - [ ] **T2.8 The `aegis` approach**
   Files: `aegis/manage.py`, `set_approach.sh`, `approach.conf`
-  Acceptance: `./set_approach.sh aegis` works; controller overhead logged to `mape_log.csv` in HarmonE's format; all nine original approaches still run.
+  Acceptance: `./set_approach.sh aegis` works; controller overhead logged to `mape_log.csv` in Triage's format; all nine original approaches still run.
   Depends: T2.7
 
 - [ ] **T2.9 Effect-vector calibration**
@@ -132,7 +132,7 @@ Format: **files it may touch** · **acceptance** · **depends on**
 
 - [ ] **T3.5 Writeup**
   Files: `docs/PITCH.md`, architecture diagram
-  Acceptance: HarmonE-vs-AegisML mapping table; bug-fix results as their own subsection; effect-vector calibration accuracy table; diagram marking inherited vs new; 3-minute script including the attribution up front and the "safety is a constraint, not a weight" line.
+  Acceptance: Triage-vs-AegisML mapping table; bug-fix results as their own subsection; effect-vector calibration accuracy table; diagram marking inherited vs new; 3-minute script including the attribution up front and the "safety is a constraint, not a weight" line.
   Depends: T3.3
 
 ---

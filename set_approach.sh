@@ -3,7 +3,7 @@
 if [ "$#" -ne 1 ]; then
   echo "Usage: $0 <baseline>"
   echo "Possible baselines:"
-  echo "  Dynamic: harmone, switch, switch+retrain"
+  echo "  Dynamic: triage, switch, switch+retrain"
   echo "  Single Model: single-lstm, single-svm, single-linear"
   echo "  Single Model with Retraining: single-lstm+retrain, single-svm+retrain, single-linear+retrain"
   exit 1
@@ -13,7 +13,7 @@ approach="$1"
 echo "$approach" > approach.conf
 
 case $approach in
-    harmone|switch|switch+retrain)
+    triage|switch|switch+retrain)
         echo "Approach set to '$approach'. No changes to knowledge/model.csv needed."
         ;;
     single-lstm)

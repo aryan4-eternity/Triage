@@ -1,5 +1,5 @@
 """
-inference.py — HarmonE managed inference loop.
+inference.py — Triage managed inference loop.
 
 BUG-3 FIX (T1.2): model is now cached as (name, mtime, obj).
   torch.load / pickle.load called once per model switch, not once per inference.

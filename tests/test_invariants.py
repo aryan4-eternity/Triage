@@ -127,7 +127,7 @@ class TestNoFloatLiterals:
           0.0, 1.0, -1.0, 2.0     — unit / clamp bounds
           0.5                      — probability midpoint
           0.1, 0.02                — small fractions (zero-variance widening)
-          0.95, 0.8, 0.8x         — HarmonE's beta/gamma/recovery_rate constants
+          0.95, 0.8, 0.8x         — Triage's beta/gamma/recovery_rate constants
                                      (cited in docstrings, not magic numbers)
           1000.0                   — ms→s conversion
           1e-N                     — numerical epsilon
@@ -136,11 +136,11 @@ class TestNoFloatLiterals:
           999.0, 9999.0            — sentinel "infinity" values
           0.3, 0.4, 0.8x          — default weight fallbacks
         """
-        # These are either unit values, cited HarmonE constants, or explicit
+        # These are either unit values, cited Triage constants, or explicit
         # sentinel/conversion values — all documented in docstrings.
         EXEMPT = {
             0.0, 1.0, -1.0, 2.0, 0.5, 0.1, 0.02,
-            # HarmonE constants (beta, gamma, recovery_rate) — cited by formula
+            # Triage constants (beta, gamma, recovery_rate) — cited by formula
             0.95, 0.8,
             # Conversions
             1000.0,

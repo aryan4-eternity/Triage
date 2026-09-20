@@ -1,4 +1,4 @@
-# BASE_PROJECT_AUDIT.md — what HarmonE actually is
+# BASE_PROJECT_AUDIT.md — what Triage actually is
 
 Read this before writing a line of AegisML code. Everything in the extension plan assumes you know what's already here, what's load-bearing, and what's broken.
 
@@ -6,17 +6,17 @@ Read this before writing a line of AegisML code. Everything in the extension pla
 
 ## 0. Provenance — handle this correctly
 
-The zip is **HarmonE**, `MIT License, Copyright (c) 2025 Hiya Bhatt`. It's a published research artifact, not code you wrote.
+The zip is **Triage**, `MIT License, Copyright (c) 2025 Hiya Bhatt`. It's a published research artifact, not code you wrote.
 
 MIT lets you build on it commercially and privately. It requires that you **keep the license file and the copyright notice** in any substantial portion you redistribute.
 
 What to do:
 - Keep `LICENSE` in the repo, unmodified.
 - Add your own `LICENSE-AEGISML` (MIT is fine) for your additions.
-- Put a `NOTICE.md` at root: "AegisML extends HarmonE (Bhatt et al., MIT-licensed). The MAPE-K skeleton, inference loop, and energy instrumentation are HarmonE's. AegisML contributes the multi-objective action-selection layer, eligibility guards, cost/latency dimensions, equity monitoring, and the outcome-learning loop."
-- In the paper/pitch, cite HarmonE as prior work you extend, explicitly. **Say it in the first 30 seconds to judges.** Extending a published exemplar is a strength; getting caught not disclosing it is fatal.
+- Put a `NOTICE.md` at root: "AegisML extends Triage (Bhatt et al., MIT-licensed). The MAPE-K skeleton, inference loop, and energy instrumentation are Triage's. AegisML contributes the multi-objective action-selection layer, eligibility guards, cost/latency dimensions, equity monitoring, and the outcome-learning loop."
+- In the paper/pitch, cite Triage as prior work you extend, explicitly. **Say it in the first 30 seconds to judges.** Extending a published exemplar is a strength; getting caught not disclosing it is fatal.
 
-This also fixes a factual error from your earlier planning chat: the paper is **HarmonE**, not "Harmonica", and the arXiv ID quoted there (2601.11926) doesn't correspond to a real preprint — it was hallucinated. Get the real citation from the repo's paper link before you write anything with a bibliography.
+This also fixes a factual error from your earlier planning chat: the paper is **Triage**, not "Harmonica", and the arXiv ID quoted there (2601.11926) doesn't correspond to a real preprint — it was hallucinated. Get the real citation from the repo's paper link before you write anything with a bibliography.
 
 ---
 
@@ -51,7 +51,7 @@ Input is a 5-step rolling window (`seq_length = 5`), MinMax-scaled.
 
 ### The nine approaches
 `approach.conf` + `set_approach.sh` select which threads `manage.py` starts:
-- `harmone` → t1 (model switching) + t2 (drift handling)
+- `Triage` → t1 (model switching) + t2 (drift handling)
 - `switch` → t1 only
 - `switch+retrain` → t1 + t3 (periodic retrain every 500s)
 - `single-{lstm,svm,linear}` → no management threads
@@ -78,7 +78,7 @@ ema[model]       = γ·model_score + (1-γ)·ema[model]           # γ = 0.8
 
 ### Analyse — `mape/analyse.py`
 
-**This is where HarmonE's "dynamic boundary" lives**, and it's one line:
+**This is where Triage's "dynamic boundary" lives**, and it's one line:
 
 ```python
 new_energy_threshold = current_energy_threshold + 0.95 * (original_energy_threshold - used_energy)
@@ -202,7 +202,7 @@ No test directory, no assertions. Every change you make is unverified.
 
 ## 5. What you're replacing
 
-| HarmonE | AegisML |
+| Triage | AegisML |
 |---|---|
 | Plan = argmax over 3 models | Plan = argmax utility over ~9 heterogeneous tactics |
 | Two metrics (R², energy) | Six families (accuracy, drift, latency, energy, cost, equity) |
@@ -213,4 +213,4 @@ No test directory, no assertions. Every change you make is unverified.
 | No outcome tracking | Outcome ledger; did the violation actually resolve? |
 | Switching is the only cheap option | Switching, version reuse, batching, window reduction, observe |
 
-**One-sentence delta:** *HarmonE decides **which model** to run; AegisML decides **what to do at all**, of which changing model is one option among many.*
+**One-sentence delta:** *Triage decides **which model** to run; AegisML decides **what to do at all**, of which changing model is one option among many.*

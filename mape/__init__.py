@@ -1,1 +1,1 @@
-"""mape — HarmonE MAPE-K loop (Monitor, Analyse, Plan, Execute)."""
+"""mape — Triage MAPE-K loop (Monitor, Analyse, Plan, Execute)."""

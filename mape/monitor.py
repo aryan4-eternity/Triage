@@ -1,5 +1,5 @@
 """
-mape/monitor.py — HarmonE MAPE-K: Monitor stage.
+mape/monitor.py — Triage MAPE-K: Monitor stage.
 
 T1.4 change: reads energy column via SCHEMA["energy_uj"] (BUG-2 fix).
 Paths resolved from ROOT so the module works from any CWD (SMELL-2 fix).

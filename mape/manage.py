@@ -1,5 +1,5 @@
 """
-mape/manage.py — HarmonE MAPE-K manager.
+mape/manage.py — Triage MAPE-K manager.
 
 T0.1 change: pyRAPL replaced with EnergyMeter abstraction so the process
   starts on any platform (Windows, macOS, AMD), not just Linux/Intel.
@@ -80,7 +80,7 @@ def run_periodic_retrain():
 
 def get_approach_config() -> str:
     if not os.path.exists(config_file):
-        return "harmone"
+        return "triage"
     with open(config_file) as f:
         return f.read().strip().lower()
 
@@ -95,13 +95,13 @@ if approach == "aegis":
     subprocess.run([sys.executable, str(ROOT / "aegis" / "manage.py")])
     sys.exit(0)
 
-# ── HarmonE approaches ─────────────────────────────────────────────────────
+# ── Triage approaches ──────────────────────────────────────────────────────
 threads = []
 
-if approach in ["harmone", "switch", "switch+retrain"]:
+if approach in ["triage", "switch", "switch+retrain"]:
     t1 = threading.Thread(target=run_execute_mape, daemon=True)
     threads.append(t1)
-    if approach == "harmone":
+    if approach == "triage":
         t2 = threading.Thread(target=run_execute_drift, daemon=True)
         threads.append(t2)
     elif approach == "switch+retrain":

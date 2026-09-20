@@ -1,8 +1,8 @@
-# EXTENSION_PLAN.md — how to build AegisML on top of HarmonE
+# EXTENSION_PLAN.md — how to build AegisML on top of Triage
 
 File-by-file guidance. Pair this with `docs/TASKBOARD.md`, which sequences it.
 
-The governing principle: **every HarmonE approach must still run, unchanged, at every point in the build.** If `./set_approach.sh harmone && python3 mape/manage.py` stops working, you've broken your own baselines and your evaluation table dies with them.
+The governing principle: **every Triage approach must still run, unchanged, at every point in the build.** If `./set_approach.sh Triage && python3 mape/manage.py` stops working, you've broken your own baselines and your evaluation table dies with them.
 
 ---
 
@@ -50,7 +50,7 @@ flow(t) = base
         + regime(t)                           # injectable step / scale / trend
         + ε,  ε ~ N(0, σ)
 ```
-CLI: `--rows --seed --station-count --regime start:end:scale:shift`. Emit `flow_data_train.csv` (10%) and `flow_data_test.csv` (90%) with the same column names HarmonE expects, plus `station_id`.
+CLI: `--rows --seed --station-count --regime start:end:scale:shift`. Emit `flow_data_train.csv` (10%) and `flow_data_test.csv` (90%) with the same column names Triage expects, plus `station_id`.
 
 Do this **even if you get real PeMS data**. Demos need deterministic drift at a known row index; PeMS won't give you that.
 
@@ -60,7 +60,7 @@ If you do get PeMS: run `tools/store_pems.py --train_ratio 0.1` as documented, t
 
 ```bash
 ./cleanup.sh && python3 tools/train_models.py
-./set_approach.sh harmone
+./set_approach.sh Triage
 python3 inference.py            # terminal 1
 python3 mape/manage.py          # terminal 2
 ```
@@ -88,7 +88,7 @@ shutil.copy(src, os.path.join("models", f"{model_name}{ext}"))
 ```
 Add `tests/test_version_reuse.py`: build a fake `versionedMR/` tree, run the path, assert the *model* file was replaced and `models/data.pth` was never created.
 
-**Measure it.** Run `harmone` on the recoverable-drift scenario before and after. Before: the tactic is a no-op and the system eventually retrains. After: accuracy recovers without a retrain. That delta is a clean, standalone result — get it on day one and you have something to show no matter what else happens.
+**Measure it.** Run `Triage` on the recoverable-drift scenario before and after. Before: the tactic is a no-op and the system eventually retrains. After: accuracy recovers without a retrain. That delta is a clean, standalone result — get it on day one and you have something to show no matter what else happens.
 
 ### 1.2 BUG-3: cache the model
 
@@ -96,7 +96,7 @@ In `inference.py`, hold `(name, mtime, obj)`; reload only when `model.csv`'s mti
 
 Then **re-profile all three models** with `tools/profile_models.py` (1000 inferences each, warm cache, report µJ/inference, ms/inference, R²). Write the results into `config/hardware.json` with the date and machine.
 
-Expect the LSTM-vs-linear energy gap to narrow substantially, because you just removed `torch.load` from the measurement. That's uncomfortable and it's the right thing to report: *"the base exemplar's per-inference energy included model deserialisation; with a warm cache the measured gap is X instead of Y, and we use the corrected profile throughout."* Never compare your corrected numbers to HarmonE's published ones as if they were the same measurement.
+Expect the LSTM-vs-linear energy gap to narrow substantially, because you just removed `torch.load` from the measurement. That's uncomfortable and it's the right thing to report: *"the base exemplar's per-inference energy included model deserialisation; with a warm cache the measured gap is X instead of Y, and we use the corrected profile throughout."* Never compare your corrected numbers to Triage's published ones as if they were the same measurement.
 
 ### 1.3 BUG-2, BUG-4, BUG-5, SMELL-2
 
@@ -105,7 +105,7 @@ Expect the LSTM-vs-linear energy gap to narrow substantially, because you just r
 - Calibrate `E_m`/`E_M` from `profile_models.py` output; clamp `energy_normalized` to [0,1]; record provenance in `thresholds.json`.
 - Make `mape/` and `aegis/` packages with `__init__.py`; resolve paths from a `ROOT = Path(__file__).resolve().parents[1]` constant.
 
-`mape/` changes here must be behaviour-preserving. Re-run `harmone` and confirm the decision sequence on a fixed seed matches pre-change.
+`mape/` changes here must be behaviour-preserving. Re-run `Triage` and confirm the decision sequence on a fixed seed matches pre-change.
 
 ---
 
@@ -114,13 +114,13 @@ Expect the LSTM-vs-linear energy gap to narrow substantially, because you just r
 ### 2.1 Contracts and store
 
 `aegis/core/models.py` — pydantic models from `docs/CONTRACTS.md`.
-`aegis/store.py` — SQLite: `snapshots`, `incidents`, `decisions`, `candidates`, `outcomes`. SQLite over CSV because you need to query the candidate table for the dashboard and the eval harness, and because concurrent append from two processes to one CSV is a race waiting to happen. `knowledge/` JSON files stay as they are so HarmonE keeps working.
+`aegis/store.py` — SQLite: `snapshots`, `incidents`, `decisions`, `candidates`, `outcomes`. SQLite over CSV because you need to query the candidate table for the dashboard and the eval harness, and because concurrent append from two processes to one CSV is a race waiting to happen. `knowledge/` JSON files stay as they are so Triage keeps working.
 
 ### 2.2 Metric extractors
 
 `aegis/core/metrics/` — one module per family, each a pure function over a DataFrame window:
-- `accuracy.py` — R², MAE, EMA (reuse HarmonE's β/γ formula verbatim; cite it in the docstring)
-- `drift.py` — KL (HarmonE's) **and** PSI, so you can report both
+- `accuracy.py` — R², MAE, EMA (reuse Triage's β/γ formula verbatim; cite it in the docstring)
+- `drift.py` — KL (Triage's) **and** PSI, so you can report both
 - `latency.py` — p50/p95 from `inference_time`
 - `energy.py` — normalised energy with the clamped E_m/E_M
 - `equity.py` — group by `station_id`, per-station R², return worst and max-min gap
@@ -129,7 +129,7 @@ Equity needs enough rows per station. With 8 stations and a 1200-row window that
 
 ### 2.3 ANALYZE
 
-`boundaries.py` for the rolling-clamped boundary; keep HarmonE's energy integral as a special case with `mode="integral"`, calling into the same code path so the dashboard renders all boundaries uniformly. Then `analyze.py` for the 7 ordered classification rules.
+`boundaries.py` for the rolling-clamped boundary; keep Triage's energy integral as a special case with `mode="integral"`, calling into the same code path so the dashboard renders all boundaries uniformly. Then `analyze.py` for the 7 ordered classification rules.
 
 ### 2.4 PLAN
 
@@ -137,8 +137,8 @@ Equity needs enough rows per station. With 8 stations and a 1200-row window that
 
 ### 2.5 Actuators
 
-`aegis/actuators/` implementing the `Actuator` protocol. Three of them just write files HarmonE already understands:
-- `model_switch.py` → writes `knowledge/model.csv` (identical to HarmonE's execute)
+`aegis/actuators/` implementing the `Actuator` protocol. Three of them just write files Triage already understands:
+- `model_switch.py` → writes `knowledge/model.csv` (identical to Triage's execute)
 - `version_reuse.py` → the repaired copy from 1.1
 - `retrain.py` → `subprocess.run(["python3", "retrain.py", "--model", m])`
 - `serving_cfg.py` → writes `knowledge/serving.json`; **new**, requires `inference.py` to read it each loop
@@ -172,13 +172,13 @@ Runtime is the constraint. At 0.15s/inference the base loop is slow — for the 
 
 ### 3.3 Writeup
 
-Mapping table: HarmonE's contribution / AegisML's delta / evidence. Architecture diagram marking clearly what's inherited and what's new. The bug-fix results as a standalone subsection — a reproducibility finding on a published artifact is publishable on its own terms.
+Mapping table: Triage's contribution / AegisML's delta / evidence. Architecture diagram marking clearly what's inherited and what's new. The bug-fix results as a standalone subsection — a reproducibility finding on a published artifact is publishable on its own terms.
 
 ---
 
 ## Ordering rules
 
-1. Never break a HarmonE approach. Run `switch` and `harmone` after every phase.
+1. Never break a Triage approach. Run `switch` and `Triage` after every phase.
 2. Fix bugs *before* building on the affected code. Version reuse before `REUSE_VERSION`. Model cache before any energy calibration.
 3. Calibrate effect vectors only after 1.2, or every number is wrong.
 4. Build the eval harness before you optimise anything, so you can tell whether an optimisation helped.

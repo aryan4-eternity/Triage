@@ -37,7 +37,7 @@ def main(train_ratio):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Store and split PEMS flow data CSV files for HarmonE."
+        description="Store and split PEMS flow data CSV files for Triage."
     )
     parser.add_argument(
         "--train_ratio", type=float, default=0.1,

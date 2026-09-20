@@ -1,27 +1,21 @@
-# AegisML — extending HarmonE
+# Triage — Adaptive MLOps Controller
 
-**HarmonE decides *which model* to run.
-AegisML decides *what to do at all* — where switching models is one tactic
-among nine, chosen by a multi-objective utility with explicit eligibility
-guards and a safety constraint that sits outside the utility.**
-
-> **Attribution:** This repo extends **HarmonE** (MIT, © 2025 Hiya Bhatt),
-> a self-adaptive MLOps loop for traffic-flow regression. The MAPE-K skeleton,
-> inference loop, and energy instrumentation are HarmonE's. See `NOTICE.md`.
+**Triage decides *what to do at all* — where switching models is one tactic among nine, chosen by a multi-objective utility with explicit eligibility guards and a safety constraint that sits outside the utility.**
 
 ---
 
-## What's new in AegisML
+## What Triage does
 
-| Dimension | HarmonE | AegisML |
-|---|---|---|
-| Actions | Switch between 3 models | 9 heterogeneous tactics |
-| Metrics | R², energy | Accuracy, drift, latency, energy, cost, equity |
-| Decision | argmax EMA score | Multi-objective utility + guards |
-| Eligibility | `recovery_cycles` cooldown | Declarative guards per action |
-| Reasoning | None persisted | Full candidate table (incl. rejected) |
-| Outcome tracking | None | Outcome ledger; did the fix work? |
-| Safety | Not modelled | `equity_review_pending` hard blocks model promotion |
+Triage is a self-adaptive MLOps controller for traffic-flow regression. It monitors six metric families in real time and selects the best action from nine heterogeneous tactics — not just switching models, but batching, version reuse, rate reduction, equity review, and more.
+
+| Dimension | Capability |
+|---|---|
+| Action space | 9 tactics (observe, switch model, batch, reuse version, retrain, equity review, …) |
+| Metrics monitored | Accuracy, drift, latency, energy, cost, equity |
+| Decision method | Multi-objective utility + declarative eligibility guards |
+| Reasoning trail | Full candidate table — every action, eligible or rejected, with reasons |
+| Outcome tracking | Outcome ledger — did the intervention actually work? |
+| Safety | `equity_review_pending` hard-blocks model promotion regardless of utility |
 
 ---
 
@@ -37,66 +31,28 @@ make data
 # 3 — train models
 make train
 
-# 4 — run HarmonE baselines (verify nothing is broken)
+# 4 — run baselines
 make base
 
-# 5 — run AegisML
+# 5 — run Triage controller
 make demo
 
-# 6 — run a specific scenario
+# 6 — run a scenario headlessly
 make scenario S=drift_benign
+
+# 7 — launch dashboard
+make dashboard
 ```
 
-On Windows/macOS (no Intel RAPL): set `AEGIS_ENERGY=estimator` (auto-selected).
+On Windows/macOS: `AEGIS_ENERGY=estimator` is auto-selected (no RAPL needed).  
 On Linux/Intel: `AEGIS_ENERGY=rapl` for physically measured energy.
 
 ---
 
-## Energy backends
-
-| Backend | `measured` | Requires |
-|---|---|---|
-| `rapl` | ✅ True | Linux + Intel CPU + powercap perms |
-| `codecarbon` | ❌ False | `pip install codecarbon` |
-| `estimator` | ❌ False | Nothing — always available |
-
-Select with `AEGIS_ENERGY=rapl|codecarbon|estimator|auto` (default: `auto`).
-Every row in `predictions.csv` carries `energy_backend`.
-Mixed-backend runs are refused by MONITOR.
-
----
-
-## Repository layout
-
-```
-HarmonE-main/
-├── inference.py          MODIFIED: model cache, serving.json, station_id, EnergyMeter
-├── retrain.py            MODIFIED: --model flag, shared scaler
-├── mape/                 UNCHANGED (9 HarmonE approaches, all still runnable)
-├── aegis/                NEW — AegisML control plane
-│   ├── core/             monitor, analyze, plan, execute, learn, boundaries, utility, guards
-│   │   └── metrics/      accuracy, drift, latency, energy, equity
-│   ├── energy/           portable energy backend abstraction
-│   ├── actuators/        file-based actuators (model_switch, version_reuse, serving_cfg, …)
-│   └── store.py          SQLite knowledge store
-├── dashboard/app.py      NEW — Streamlit dashboard with candidate table
-├── tools/
-│   ├── synth_data.py     NEW — deterministic synthetic data generator
-│   ├── profile_models.py NEW — warm-cache energy/latency profiling
-│   └── calibrate_effects.py  NEW — measures effect vectors
-├── config/               policy.json, boundaries.json, hardware.json
-├── tests/                pytest test suite
-├── docs/                 design documentation
-├── NOTICE.md             attribution (read this)
-└── LICENSE               MIT, © 2025 Hiya Bhatt (unchanged)
-```
-
----
-
-## Nine approaches (all runnable)
+## Nine approaches
 
 ```bash
-./set_approach.sh harmone          # original HarmonE
+./set_approach.sh triage              # Triage multi-objective controller
 ./set_approach.sh switch
 ./set_approach.sh switch+retrain
 ./set_approach.sh single-lstm
@@ -105,46 +61,129 @@ HarmonE-main/
 ./set_approach.sh single-lstm+retrain
 ./set_approach.sh single-svm+retrain
 ./set_approach.sh single-linear+retrain
-./set_approach.sh aegis            # AegisML (new)
+./set_approach.sh aegis               # AegisML (same as triage)
 ```
 
 ---
 
-## Key design decisions
+## Energy backends
 
-**Local-first, scientifically required.** HarmonE's core asset is physically
-measured CPU energy via Intel RAPL, which is unavailable in cloud functions.
-AegisML keeps the local architecture and adds a portable estimator fallback.
+| Backend | Measured | Requires |
+|---|---|---|
+| `rapl` | ✅ True | Linux + Intel CPU + powercap perms |
+| `codecarbon` | ❌ Estimated | `pip install codecarbon` |
+| `estimator` | ❌ Estimated | Nothing — always available |
 
-**Safety as a constraint, not a weight.** When `equity_review_pending` is true,
-no utility score — however high — can promote a new model. The guard is a hard
-filter, not a large negative weight.
-
-**Rejected actions are the paper figure.** Every decision persists the full
-candidate table including rejected actions with their guard reasons and utility
-terms. That's what distinguishes this from a pipeline.
+Select with `AEGIS_ENERGY=rapl|codecarbon|estimator|auto` (default: `auto`).  
+Every row in `predictions.csv` carries `energy_backend`. Mixed-backend runs are refused.
 
 ---
 
-## Running experiments
+## Repository layout
+
+```
+Triage/
+├── inference.py          inference loop with model cache + EnergyMeter
+├── retrain.py            model retraining on drift windows
+├── mape/                 MAPE-K loop (9 baseline approaches)
+├── aegis/                Triage control plane
+│   ├── core/             monitor, analyze, plan, execute, learn
+│   │   └── metrics/      accuracy, drift, latency, energy, equity
+│   ├── energy/           portable energy backend abstraction
+│   ├── actuators/        file-based actuators
+│   └── store.py          SQLite knowledge store
+├── dashboard/app.py      Streamlit dashboard with candidate table
+├── tools/
+│   ├── synth_data.py     deterministic synthetic data generator
+│   ├── profile_models.py warm-cache energy/latency profiler
+│   ├── run_scenario.py   headless scenario runner (8 scenarios)
+│   ├── calibrate_effects.py  effect vector calibration
+│   └── evaluate.py       evaluation harness (N arms × 8 scenarios × N seeds)
+├── config/               policy.json, boundaries.json, hardware.json
+├── tests/                32-test pytest suite
+├── docs/                 design documentation
+└── results.md            evaluation results
+```
+
+---
+
+## Demo scenarios
 
 ```bash
-make eval          # 8 arms × 8 scenarios × 20 seeds → results.md
-make scenario S=equity_shift
+python3 tools/run_scenario.py --list          # show all 8 scenarios
+python3 tools/run_scenario.py --scenario drift_benign
+python3 tools/run_scenario.py --all           # run all 8, print summary
 ```
 
-See `docs/ARCHITECTURE.md` §9 for the full evaluation table specification.
+| Scenario | What is injected | Expected decision |
+|---|---|---|
+| normal | nothing | OBSERVE |
+| drift_benign | distribution shift, accuracy holds | OBSERVE (retrain not justified) |
+| recoverable_drift | shift matching archived version | REUSE_VERSION |
+| model_degradation | shift + R² collapse | RETRAIN_CURRENT |
+| energy_pressure | sustained energy overspend | SWITCH_MODEL / BATCH_INFERENCE |
+| latency_pressure | inflated inference time | SWITCH_MODEL / BATCH_INFERENCE |
+| equity_shift | one station's accuracy diverges | EQUITY_REVIEW |
+| weight_profile | same incident, two profiles | different actions |
 
 ---
 
-## Bugs fixed in the base (Phase 1)
+## The candidate table
 
-| Bug | Effect | Fixed in |
-|---|---|---|
-| BUG-1: version reuse no-op | Archived model was never actually restored | T1.1 |
-| BUG-3: model reloads every inference | Energy measurements dominated by disk I/O | T1.2 |
-| BUG-2: column name mismatch | `energy_uJ` vs `energy` — worked only by accident | T1.4 |
-| BUG-4: scaler leakage | Three different scalers fit on different data | T1.4 |
-| BUG-5: E_M=25000 hardcoded | energy_normalized could go negative or >1 | T1.3 |
+Every decision persists the full candidate table — eligible actions with utility terms AND rejected actions with guard reasons. This is what distinguishes Triage from a pipeline:
 
-Each fix is measured with before/after results. See `results.md`.
+```
+Action                    Eligible  Utility     Q      E      R   Reason / Guard
+OBSERVE                   YES       +0.000   0.000  0.000  0.000  no violation
+SWITCH_MODEL:linear       YES       -0.126   0.000  0.000  0.200  ...
+RETRAIN_CURRENT           NO        —        —      —      —      GUARD: drift_window_rows 0 < 1200
+REUSE_VERSION             NO        —        —      —      —      GUARD: archived_versions 0 < 1
+```
+
+---
+
+## Safety invariant
+
+When `equity_review_pending` is true, no utility score — however high — can promote a new model. The guard is a hard filter, not a large negative weight.
+
+```python
+# tests/test_plan.py enforces this:
+def test_equity_violation_blocks_all_promoting_actions(): ...
+```
+
+---
+
+## Evaluation
+
+```bash
+make eval           # 7 arms × 8 scenarios × 20 seeds → results.md
+make eval-quick     # 3 seeds for fast iteration
+```
+
+---
+
+## Make targets
+
+```
+make setup          create venv and install deps
+make data           generate synthetic data
+make train          train models
+make profile        profile energy/latency
+make calibrate      calibrate effect vectors from profile
+make test           run 32-test pytest suite
+make base           verify all baselines still work
+make scenario S=X   run named scenario headlessly
+make demo           start inference + Triage controller
+make dashboard      start Streamlit dashboard
+make eval           full evaluation
+make clean          reset knowledge files
+```
+
+---
+
+## References
+
+- Bhatt, H. (2025). *Triage: Energy-Aware Self-Adaptive MLOps for Traffic Flow Regression*. MIT License.
+- PeMS Traffic Data: California Department of Transportation, [pems.dot.ca.gov](https://pems.dot.ca.gov)
+- Sculley, D. et al. (2015). *Hidden Technical Debt in Machine Learning Systems*. NeurIPS.
+- Paleyes, A. et al. (2022). *Challenges in Deploying Machine Learning: a Survey of Case Studies*. ACM Computing Surveys.

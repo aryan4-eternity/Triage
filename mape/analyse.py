@@ -1,5 +1,5 @@
 """
-mape/analyse.py — HarmonE MAPE-K: Analyse stage.
+mape/analyse.py — Triage MAPE-K: Analyse stage.
 
 BUG-1 FIX (T1.1): get_best_version() now returns a dict with the version
 DIRECTORY path (not data.csv), the winning KL divergence, and the model name.

@@ -47,13 +47,12 @@ test:
 	@echo "Tests complete"
 
 # ── Baseline check ─────────────────────────────────────────────────────────────
-# Verifies all HarmonE approaches still work after any change.
-# Run inference.py and mape/manage.py for one MAPE cycle, then check output.
+# Verifies all Triage approaches still work after any change.
 .PHONY: base
 base:
-	@echo "Setting approach to harmone..."
-	bash set_approach.sh harmone
-	@echo "Running HarmonE baseline check (30s)..."
+	@echo "Setting approach to triage..."
+	bash set_approach.sh triage
+	@echo "Running Triage baseline check (30s)..."
 	AEGIS_ENERGY=estimator timeout 30 $(PYTHON) inference.py & \
 	sleep 5 && AEGIS_ENERGY=estimator timeout 25 $(PYTHON) mape/manage.py; \
 	wait
@@ -116,7 +115,7 @@ help:
 	@echo "  make profile        — profile model energy/latency"
 	@echo "  make calibrate      — calibrate effect vectors"
 	@echo "  make test           — run pytest suite"
-	@echo "  make base           — verify HarmonE baselines still work"
+	@echo "  make base           — verify Triage baselines still work"
 	@echo "  make scenario S=<x> — run a named scenario headlessly"
 	@echo "  make all-scenarios  — run all 8 scenarios"
 	@echo "  make demo           — start inference + AegisML controller"

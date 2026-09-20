@@ -14,7 +14,7 @@ Output:
     data/pems/flow_data_test.csv    (remaining 90%)
 
 Both files have columns: flow, station_id
-(columns match what HarmonE's inference.py and monitor.py expect)
+(columns match what Triage's inference.py and monitor.py expect)
 """
 from __future__ import annotations
 

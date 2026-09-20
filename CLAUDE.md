@@ -1,10 +1,10 @@
-# CLAUDE.md — AegisML (extending HarmonE)
+# CLAUDE.md — AegisML (extending Triage)
 
 Read `docs/BASE_PROJECT_AUDIT.md` before writing any code — this repo is an extension of someone else's published research artifact and you need to know what's already here. Then `ARCHITECTURE.md`. Read `docs/CONTRACTS.md` before touching any data shape, `docs/POLICY_ENGINE.md` before touching anything under `aegis/core/{plan,utility,guards,analyze,boundaries}.py`, and `docs/ENERGY.md` before touching anything that measures or reports energy.
 
 ## What this is
 
-**HarmonE** (`mape/`, `inference.py`, `retrain.py`, MIT, © 2025 Hiya Bhatt) is a self-adaptive MLOps loop for traffic-flow regression that balances R² against physically measured CPU energy, choosing between three models.
+**Triage** (`mape/`, `inference.py`, `retrain.py`, MIT, © 2025 Hiya Bhatt) is a self-adaptive MLOps loop for traffic-flow regression that balances R² against physically measured CPU energy, choosing between three models.
 
 **AegisML** (`aegis/`) extends its Plan stage: from argmax over three models to a multi-objective utility over nine heterogeneous tactics, with declarative eligibility guards, six metric families, persisted reasoning, and a safety constraint that sits outside the utility function.
 
@@ -12,7 +12,7 @@ Timeline is short. Optimise for a working demo plus a defensible evaluation tabl
 
 ## Hard rules
 
-1. **Never break a HarmonE approach.** All nine (`harmone`, `switch`, `switch+retrain`, `single-*`, `single-*+retrain`) must run unchanged at every point in the build. They are the baselines the evaluation depends on. After any change to `mape/`, `inference.py`, or `retrain.py`, run `./set_approach.sh harmone` and confirm a cycle completes.
+1. **Never break a Triage approach.** All nine (`Triage`, `switch`, `switch+retrain`, `single-*`, `single-*+retrain`) must run unchanged at every point in the build. They are the baselines the evaluation depends on. After any change to `mape/`, `inference.py`, or `retrain.py`, run `./set_approach.sh Triage` and confirm a cycle completes.
 
 2. **`aegis/core/**` imports no torch, no pyRAPL, no boto3, no streamlit, and nothing from `mape/`.** It is pure functions over the contracts. External effects go through `aegis/ports/` protocols implemented in `aegis/actuators/` and `aegis/energy/`. This is what keeps the contribution testable without a dataset or an Intel machine.
 
@@ -30,7 +30,7 @@ Timeline is short. Optimise for a working demo plus a defensible evaluation tabl
 
 ## Stack
 
-Python 3.11 · pandas, numpy, scipy, scikit-learn, torch (CPU) · pydantic v2 for contracts · pyRAPL / codecarbon for energy · Streamlit for the dashboard · pytest · SQLite for the AegisML knowledge store (HarmonE's JSON/CSV files stay as they are).
+Python 3.11 · pandas, numpy, scipy, scikit-learn, torch (CPU) · pydantic v2 for contracts · pyRAPL / codecarbon for energy · Streamlit for the dashboard · pytest · SQLite for the AegisML knowledge store (Triage's JSON/CSV files stay as they are).
 
 ## Commands
 
@@ -40,7 +40,7 @@ make data                   # tools/synth_data.py, seeded
 make train                  # tools/train_models.py
 make profile                # tools/profile_models.py -> config/hardware.json
 make test                   # pytest -q
-make base                   # ./set_approach.sh harmone + both processes (baseline check)
+make base                   # ./set_approach.sh Triage + both processes (baseline check)
 make demo                   # ./set_approach.sh aegis + both processes + dashboard
 make scenario S=drift_benign
 make eval                   # 8 arms x 8 scenarios x 20 seeds -> results.md
@@ -64,10 +64,10 @@ Say so and give me two concrete options with trade-offs. Don't invent a third me
 
 ## Style
 
-- Docstrings on every public `aegis/core/` function stating the invariant it preserves. Where you reuse a HarmonE formula, cite the source file in the docstring.
+- Docstrings on every public `aegis/core/` function stating the invariant it preserves. Where you reuse a Triage formula, cite the source file in the docstring.
 - Type-hint `aegis/core/` and `aegis/ports/`; `mypy --strict` clean on those two. Elsewhere, don't care.
 - Structured log dicts, one line per MAPE stage: `stage, snapshot_id, incident_type, chosen_action, reason, energy_backend`.
-- No emoji in new code or logs. HarmonE's existing emoji prints stay — don't churn files you're not otherwise touching.
+- No emoji in new code or logs. Triage's existing emoji prints stay — don't churn files you're not otherwise touching.
 
 ## Things that will waste your time (don't)
 
@@ -75,5 +75,5 @@ Say so and give me two concrete options with trade-offs. Don't invent a third me
 - Rewriting `mape/` into `aegis/`. You'd destroy your own baselines.
 - Reinforcement learning. The transparent utility scorer is the contribution.
 - Inventing demographic protected attributes for traffic data. Equity here is per-station performance disparity. See `ARCHITECTURE.md` §0.
-- Comparing your post-bug-fix energy numbers against HarmonE's published ones. Different measurement, not a result.
+- Comparing your post-bug-fix energy numbers against Triage's published ones. Different measurement, not a result.
 - A React dashboard. Streamlit.

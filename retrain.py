@@ -1,5 +1,5 @@
 """
-retrain.py — HarmonE model retraining on drift data.
+retrain.py — Triage model retraining on drift data.
 
 T1.4 changes:
   - BUG-4 fix: loads shared scaler from artifacts/scaler.pkl (never refits on
@@ -154,7 +154,7 @@ def retrain(model_name: str | None = None) -> None:
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Retrain a HarmonE model.")
+    parser = argparse.ArgumentParser(description="Retrain a Triage model.")
     parser.add_argument("--model", type=str, default=None,
                         help="Model to retrain (lstm|svm|linear). "
                              "Default: active model from knowledge/model.csv")

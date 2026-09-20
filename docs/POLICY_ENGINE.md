@@ -2,13 +2,13 @@
 
 This is the contribution. Everything else is plumbing around it. Read fully before editing `aegis/core/plan.py`, `utility.py`, `guards.py`, `boundaries.py`, or `analyze.py`.
 
-**What HarmonE does here, for comparison:** collapse R² and energy into one scalar with `β`, EMA-smooth it with `γ`, and if it drops below `min_score` (or energy exceeds the threshold) pick `argmax` over three models' EMA scores. One objective, three homogeneous options, no record of why.
+**What Triage does here, for comparison:** collapse R² and energy into one scalar with `β`, EMA-smooth it with `γ`, and if it drops below `min_score` (or energy exceeds the threshold) pick `argmax` over three models' EMA scores. One objective, three homogeneous options, no record of why.
 
 ---
 
 ## 1. Boundaries
 
-### Kept from HarmonE: the energy integral controller
+### Kept from Triage: the energy integral controller
 
 ```
 thr ← thr + 0.95 · (thr_original − energy_used)
@@ -16,7 +16,7 @@ thr ← thr + 0.95 · (thr_original − energy_used)
 
 Genuinely elegant — underspend and your allowance grows, overspend and it shrinks. Keep it verbatim (`mode: "integral"`) so the energy arm stays comparable with the base system.
 
-One thing to know: it has **no lower bound**. Sustained overspend drives `thr` arbitrarily negative and the energy boundary becomes permanently violated, which pins the controller into energy-pressure mode forever. HarmonE masks this with `recovery_cycles`. Clamp `thr` to `[0.1·orig, 2·orig]` and note the change — it's a small robustness fix worth a sentence in the paper.
+One thing to know: it has **no lower bound**. Sustained overspend drives `thr` arbitrarily negative and the energy boundary becomes permanently violated, which pins the controller into energy-pressure mode forever. Triage masks this with `recovery_cycles`. Clamp `thr` to `[0.1·orig, 2·orig]` and note the change — it's a small robustness fix worth a sentence in the paper.
 
 ### New: rolling boundaries for the other families
 
@@ -30,7 +30,7 @@ def boundary(history, cfg, k):
 
 - **Cold start** (<`window` samples) → hard bounds only, `mode="hard"`.
 - **Zero variance** (`sd < 1e-6`) → widen to `max(sd, 0.02·|mu|)`.
-- **Persistence** — `persistence = 2` consecutive violations before an incident fires. HarmonE fires on a single snapshot, which combined with `recovery_cycles = 3` gives it a fire-then-freeze rhythm. Persistence is the cleaner mechanism; keep `recovery_cycles` as a per-action cooldown guard instead.
+- **Persistence** — `persistence = 2` consecutive violations before an incident fires. Triage fires on a single snapshot, which combined with `recovery_cycles = 3` gives it a fire-then-freeze rhythm. Persistence is the cleaner mechanism; keep `recovery_cycles` as a per-action cooldown guard instead.
 
 ```
 severity = clamp(|value − bound| / |hard_bound − bound|, 0, 1)
@@ -85,7 +85,7 @@ Floor rule: `max U < 0` → `OBSERVE`.
 
 ### ε-greedy, relocated
 
-HarmonE explores *before* analysis — `random.random() < α` short-circuits everything and can return the current model or an unsuitable one. In AegisML, exploration happens **after** the guard filter, over eligible candidates only:
+Triage explores *before* analysis — `random.random() < α` short-circuits everything and can return the current model or an unsuitable one. In AegisML, exploration happens **after** the guard filter, over eligible candidates only:
 
 ```python
 candidates = [c for c in all_candidates if c.eligible]
@@ -117,7 +117,7 @@ Profile `balanced`: `w_acc 1.0, w_e 0.8, w_l 0.4, w_c 0.3, w_eq 1.4, w_r 0.4`
 Winner: `OBSERVE` (0.000).
 Reason: *"drift severity 0.23 with accuracy inside its boundary; retraining's projected relief 0.20 is outweighed by measured energy cost 1.00 and risk 0.55. No archived version is close enough to reuse (KL 0.82 ≥ 0.75)."*
 
-Compare to HarmonE on the same snapshot: KL 0.31 is below its 0.75 drift threshold, so `analyse_drift` reports no drift and nothing happens — same outcome, no reasoning, and no ability to distinguish "nothing is wrong" from "something is wrong but not worth fixing". That distinction is your contribution and this table is how you show it.
+Compare to Triage on the same snapshot: KL 0.31 is below its 0.75 drift threshold, so `analyse_drift` reports no drift and nothing happens — same outcome, no reasoning, and no ability to distinguish "nothing is wrong" from "something is wrong but not worth fixing". That distinction is your contribution and this table is how you show it.
 
 Now switch to `accuracy_first` (`w_acc 1.8, w_e 0.3, w_r 0.2`):
 `U(RETRAIN) = 1.8(0.20) − 0.3(1.00) − 0.3(0.90) − 0.2(0.88) − 0.2(0.55) = −0.56` — still negative, still rejected. Correct: even an accuracy-hungry policy shouldn't retrain when accuracy isn't hurt.
@@ -134,7 +134,7 @@ Rule 1 fires: `EQUITY_VIOLATION`. The global guard sets `equity_review_pending`,
 
 The line for judges: **"this is the one case where utility doesn't decide. Safety is a constraint, not a weight — a high enough accuracy score can't buy its way past it."**
 
-This is also the scenario that justifies adding equity to a traffic-forecasting system at all: the aggregate R² is fine. HarmonE, monitoring only aggregate accuracy and energy, would see nothing wrong and keep optimising energy by switching to a cheaper model — plausibly making the worst station worse. Show that ablation. It's the cleanest argument for the whole extra metric family.
+This is also the scenario that justifies adding equity to a traffic-forecasting system at all: the aggregate R² is fine. Triage, monitoring only aggregate accuracy and energy, would see nothing wrong and keep optimising energy by switching to a cheaper model — plausibly making the worst station worse. Show that ablation. It's the cleanest argument for the whole extra metric family.
 
 ---
 
@@ -166,7 +166,7 @@ Also use the ledger to **recalibrate effect vectors**: compare `projected_effect
 - `test_accuracy_sign_flip_handled_once` — feed an accuracy-improving effect, assert severity reduction
 
 `tests/test_boundaries.py`:
-- `test_energy_integral_matches_harmone_formula` — parity with `mape/analyse.py`
+- `test_energy_integral_matches_Triage_formula` — parity with `mape/analyse.py`
 - `test_energy_threshold_clamped_below`
 - `test_cold_start_uses_hard_bounds`
 - `test_persistence_suppresses_single_snapshot_spike`

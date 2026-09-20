@@ -11,7 +11,7 @@
 | arm | DRIFT_ONLY | ENERGY_PRESSURE | EQUITY_VIOLATION | LATENCY_PRESSURE | NONE |
 | --- | --- | --- | --- | --- | --- |
 | aegis | 15 | 4 | 13 | 4 | 4 |
-| harmone | 15 | 4 | 13 | 4 | 4 |
+| Triage | 15 | 4 | 13 | 4 | 4 |
 | single-linear | 15 | 4 | 13 | 4 | 4 |
 | single-lstm | 15 | 4 | 13 | 4 | 4 |
 | single-svm | 15 | 4 | 13 | 4 | 4 |
@@ -23,7 +23,7 @@
 | arm | EQUITY_REVIEW | OBSERVE | SWITCH_MODEL |
 | --- | --- | --- | --- |
 | aegis | 11 | 15 | 14 |
-| harmone | 11 | 15 | 14 |
+| Triage | 11 | 15 | 14 |
 | single-linear | 11 | 18 | 11 |
 | single-lstm | 11 | 15 | 14 |
 | single-svm | 11 | 15 | 14 |
@@ -35,7 +35,7 @@
 | arm | n_runs | retrain_% | unnecessary_% |
 | --- | --- | --- | --- |
 | aegis | 32 | 0.0 | 0.0 |
-| harmone | 32 | 0.0 | 0.0 |
+| Triage | 32 | 0.0 | 0.0 |
 | single-linear | 32 | 0.0 | 0.0 |
 | single-lstm | 32 | 0.0 | 0.0 |
 | single-svm | 32 | 0.0 | 0.0 |

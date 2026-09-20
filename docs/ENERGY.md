@@ -1,6 +1,6 @@
 # ENERGY.md — measuring energy honestly
 
-Energy is HarmonE's primary asset and the thing that makes this project more than another MLOps pipeline. It's also the part most likely to embarrass you if handled loosely. This file is short on purpose: follow it exactly.
+Energy is Triage's primary asset and the thing that makes this project more than another MLOps pipeline. It's also the part most likely to embarrass you if handled loosely. This file is short on purpose: follow it exactly.
 
 ---
 
@@ -67,7 +67,7 @@ That last one costs you two lines and buys you the ability to demo on a laptop w
 - Same for `batch_size ∈ {1, 2, 4, 8}` — this gives you `BATCH_INFERENCE`'s real effect vector
 - One full retrain per model type, measured — this gives you `RETRAIN_CURRENT`'s real energy cost
 
-Output goes to `config/hardware.json` with CPU model, OS, backend, and date. `E_m` and `E_M` in `thresholds.json` come from this run, not from HarmonE's hardcoded `25000`.
+Output goes to `config/hardware.json` with CPU model, OS, backend, and date. `E_m` and `E_M` in `thresholds.json` come from this run, not from Triage's hardcoded `25000`.
 
 Re-run it if you change machines. Numbers from two machines never go in the same table.
 
