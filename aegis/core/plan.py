@@ -50,7 +50,7 @@ def _load_model_list() -> list[str]:
     return names or ["lstm", "svm", "linear"]
 
 
-def _build_ctx(snapshot, store, extra: dict | None = None) -> dict:
+def _build_ctx(snapshot, store, extra: dict | None = None, incident=None) -> dict:
     """Build the PlanContext dict from snapshot and store state."""
     from datetime import timezone as tz
 
@@ -88,7 +88,10 @@ def _build_ctx(snapshot, store, extra: dict | None = None) -> dict:
     else:
         cooldowns = {"RETRAIN_CURRENT": 9999.0, "RETRAIN_ALL": 9999.0}
 
-    # Equity review pending
+    # Equity review pending — from file OR from incident type.
+    # EQUITY_VIOLATION always implies equity_review_pending=True
+    # (the actuator opens the review, but PLAN must block promoting actions
+    #  even before the file is written, i.e. in the same cycle).
     review_path = ROOT / "knowledge" / "review.json"
     equity_pending = False
     if review_path.exists():
@@ -97,6 +100,9 @@ def _build_ctx(snapshot, store, extra: dict | None = None) -> dict:
             equity_pending = bool(rv.get("equity_review_pending", False))
         except Exception:
             pass
+    # Also set from incident if passed in
+    if incident is not None and getattr(incident, "type", None) == "EQUITY_VIOLATION":
+        equity_pending = True
 
     # Drift window rows
     drift_path = ROOT / "knowledge" / "drift.csv"
@@ -207,7 +213,7 @@ def plan(
     })
     epsilon = float(policy.get("epsilon", 0.1))
 
-    ctx = _build_ctx(snapshot, store)
+    ctx = _build_ctx(snapshot, store, incident=incident)
 
     # Max energy for normalisation
     all_uj = [float(cfg.get("energy_uj", 0))
