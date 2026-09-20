@@ -16,7 +16,8 @@
     "drift.kl_div": {
       "direction": "upper",
       "hard_ceiling": 0.75,
-      "_note": "HarmonE drift threshold — kept identical for cross-arm comparability"
+      "scenario_ceiling": 0.25,
+      "_note": "HarmonE hard ceiling 0.75 kept for cross-arm comparability; dynamic bound will tighten during normal operation"
     },
     "latency.p95_ms": {
       "direction": "upper",
@@ -25,10 +26,8 @@
     },
     "energy.normalized": {
       "direction": "upper",
-      "mode": "integral",
-      "original_threshold": 1.0,
-      "recovery_rate": 0.95,
-      "_note": "HarmonE integral controller — kept verbatim"
+      "hard_ceiling": 30000.0,
+      "_note": "Raw µJ per inference — dynamic boundary; hard ceiling = E_M * 1.2 placeholder"
     },
     "equity.gap": {
       "direction": "upper",

@@ -39,14 +39,16 @@ def _load_persistence() -> int:
     return 2
 
 
-# Mapping from metric key to (snapshot_attribute_chain, history_key)
+# Mapping from metric key to extractor lambda
+# For energy.normalized (integral mode): pass the normalized energy value;
+# the boundary compares this against the current_threshold from the snapshot.
 _METRIC_EXTRACTORS: dict[str, callable] = {
-    "accuracy.r2":       lambda s: s.accuracy.r2,
-    "drift.kl_div":      lambda s: s.drift.kl_div,
-    "latency.p95_ms":    lambda s: s.latency.p95_ms,
-    "energy.normalized": lambda s: s.energy.normalized,
-    "equity.gap":        lambda s: s.equity.gap,
-    "equity.worst_r2":   lambda s: s.equity.worst_r2,
+    "accuracy.r2":        lambda s: s.accuracy.r2,
+    "drift.kl_div":       lambda s: s.drift.kl_div,
+    "latency.p95_ms":     lambda s: s.latency.p95_ms,
+    "energy.normalized":  lambda s: s.energy.uj_per_inference,   # raw µJ, not clamped
+    "equity.gap":         lambda s: s.equity.gap,
+    "equity.worst_r2":    lambda s: s.equity.worst_r2,
 }
 
 

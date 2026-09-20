@@ -33,6 +33,8 @@ def compute_drift(
     Invariant: both series must be numeric and non-empty.
     KL parity: uses identical histogram parameters to mape/monitor.py so
     drift detection is comparable across HarmonE and AegisML arms.
+    Shared bin edges are derived from the union of both series to correctly
+    detect distribution shifts between non-overlapping ranges.
 
     Args:
         reference: Earlier window of true_value (1200 rows).
@@ -44,9 +46,14 @@ def compute_drift(
     ref  = reference.values.astype(float)
     curr = current.values.astype(float)
 
-    # KL divergence — same as mape/monitor.py
-    h_ref,  _ = np.histogram(ref,  bins=_BINS, density=True)
-    h_curr, _ = np.histogram(curr, bins=_BINS, density=True)
+    # Compute KL divergence with SHARED bin edges (union range)
+    # This ensures separated distributions produce high KL, not low KL
+    combined_min = min(ref.min(), curr.min())
+    combined_max = max(ref.max(), curr.max())
+    shared_edges = np.linspace(combined_min, combined_max, _BINS + 1)
+
+    h_ref,  _ = np.histogram(ref,  bins=shared_edges, density=True)
+    h_curr, _ = np.histogram(curr, bins=shared_edges, density=True)
     kl_div = float(entropy(h_ref + _EPSILON, h_curr + _EPSILON))
 
     # PSI — use shared bin edges derived from reference
