@@ -183,7 +183,6 @@ make clean          reset knowledge files
 
 ## References
 
-- Bhatt, H. (2025). *Triage: Energy-Aware Self-Adaptive MLOps for Traffic Flow Regression*. MIT License.
 - PeMS Traffic Data: California Department of Transportation, [pems.dot.ca.gov](https://pems.dot.ca.gov)
 - Sculley, D. et al. (2015). *Hidden Technical Debt in Machine Learning Systems*. NeurIPS.
 - Paleyes, A. et al. (2022). *Challenges in Deploying Machine Learning: a Survey of Case Studies*. ACM Computing Surveys.
